@@ -40,11 +40,25 @@ The app can work in demo mode without Spotify credentials, but for the full expe
 
 ### Running the App
 
+### Single Player Mode
 ```bash
- npm run dev
+npm run dev
 ```
-
 The app will open at `http://localhost:3000`
+
+### Multiplayer Mode
+1. Start the server:
+   ```bash
+   npm run server
+   ```
+   The server will run on `http://localhost:3001`
+
+2. In another terminal, start the client:
+   ```bash
+   npm run dev
+   ```
+
+3. Open multiple browser windows/tabs to test multiplayer locally, or share the room code with friends on the same network
 
 ### Building for Production
 
