@@ -15,6 +15,7 @@ function App() {
   const [showAnswer, setShowAnswer] = useState(false)
   const [gameStarted, setGameStarted] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [selectedGenre, setSelectedGenre] = useState('any')
   const audioRef = useRef(null)
   const [timePlayed, setTimePlayed] = useState(0)
   const [autoStartIn, setAutoStartIn] = useState(null) // seconds until auto play
@@ -66,7 +67,7 @@ function App() {
   const loadTracks = async () => {
     setLoading(true)
     try {
-      const fetchedTracks = await getRandomTracks(50)
+      const fetchedTracks = await getRandomTracks(50, selectedGenre)
       // Filter tracks that have preview URLs
       const tracksWithPreview = fetchedTracks.filter(track => track.preview_url)
       console.log(`Loaded ${fetchedTracks.length} tracks, ${tracksWithPreview.length} with preview URLs`)
@@ -284,6 +285,32 @@ function App() {
         <div className="mode-selector">
           <h1>🎵 Music Guesser</h1>
           <p className="subtitle">Guess the song or the artist. Fast!</p>
+          <div className="genre-picker">
+            <label className="genre-label">Genre</label>
+            <select
+              className="genre-select"
+              value={selectedGenre}
+              onChange={(e) => setSelectedGenre(e.target.value)}
+            >
+              <option value="any">Any</option>
+              <option value="pop">Pop</option>
+              <option value="rock">Rock</option>
+              <option value="hip-hop">Hip Hop</option>
+              <option value="indie">Indie</option>
+              <option value="electronic">Electronic</option>
+              <option value="r-n-b">R&B</option>
+              <option value="dance">Dance</option>
+              <option value="latin">Latin</option>
+              <option value="country">Country</option>
+              <option value="jazz">Jazz</option>
+              <option value="k-pop">K-Pop</option>
+              <option value="metal">Metal</option>
+              <option value="soul">Soul</option>
+              <option value="funk">Funk</option>
+              <option value="blues">Blues</option>
+              <option value="reggae">Reggae</option>
+            </select>
+          </div>
           <div className="mode-buttons">
             <button
               className="mode-btn"

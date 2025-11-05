@@ -84,7 +84,7 @@ export async function searchTracks(query, limit = 20) {
 }
 
 // Get random popular tracks
-export async function getRandomTracks(limit = 50) {
+export async function getRandomTracks(limit = 50, genre = 'any') {
   const token = await getAccessToken();
   
   if (!token) {
@@ -92,7 +92,33 @@ export async function getRandomTracks(limit = 50) {
     return getMockTracks();
   }
 
-  // Try multiple search strategies to get tracks with preview URLs
+  // If a specific genre is selected, try Spotify recommendations first
+  if (genre && genre !== 'any') {
+    try {
+      const recRes = await fetch(
+        `https://api.spotify.com/v1/recommendations?limit=${limit}&market=US&seed_genres=${encodeURIComponent(genre)}`,
+        {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }
+      );
+      if (recRes.ok) {
+        const recData = await recRes.json();
+        const tracks = recData.tracks || [];
+        const withPreview = tracks.filter(t => t.preview_url);
+        if (withPreview.length > 0) {
+          console.log(`Recommendations for genre "${genre}": ${withPreview.length} tracks with previews`);
+          return withPreview;
+        }
+      } else {
+        const errorData = await recRes.json().catch(() => ({}));
+        console.error('Spotify recommendations error:', recRes.status, errorData);
+      }
+    } catch (e) {
+      console.error('Error fetching recommendations:', e);
+    }
+  }
+
+  // Try multiple search strategies to get tracks with preview URLs (genre-agnostic)
   const searchStrategies = [
     { query: 'tag:new', name: 'new releases' },
     { query: 'tag:hipster', name: 'hipster' },
@@ -142,7 +168,7 @@ export async function getRandomTracks(limit = 50) {
   // If all strategies failed, try iTunes fallback
   try {
     const { getITunesRandomTracks } = await import('./itunes');
-    const itunesTracks = await getITunesRandomTracks(limit);
+    const itunesTracks = await getITunesRandomTracks(limit, genre && genre !== 'any' ? genre : undefined);
     if (itunesTracks.length > 0) {
       console.warn('Using iTunes fallback (Spotify previews unavailable)');
       return itunesTracks;
@@ -154,6 +180,27 @@ export async function getRandomTracks(limit = 50) {
   // If everything failed, return mock data
   console.warn('All strategies failed, returning mock tracks');
   return getMockTracks();
+}
+
+// Get Spotify's official available genre seeds
+export async function getAvailableGenres() {
+  const token = await getAccessToken();
+  if (!token) return [];
+  try {
+    const res = await fetch('https://api.spotify.com/v1/recommendations/available-genre-seeds', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      console.error('Error fetching genre seeds:', res.status, err);
+      return [];
+    }
+    const data = await res.json();
+    return Array.isArray(data.genres) ? data.genres : [];
+  } catch (e) {
+    console.error('Error fetching genre seeds:', e);
+    return [];
+  }
 }
 
 // Mock data for demo purposes (when API credentials not available)

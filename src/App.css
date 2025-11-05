@@ -34,6 +34,31 @@
   gap: 15px;
 }
 
+.genre-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 18px 0 10px;
+  text-align: left;
+}
+
+.genre-label {
+  font-weight: 600;
+  color: #555;
+}
+
+.genre-select {
+  padding: 12px 14px;
+  border: 2px solid #e0e0e0;
+  border-radius: 10px;
+  font-size: 1rem;
+  outline: none;
+}
+
+.genre-select:focus {
+  border-color: #667eea;
+}
+
 .mode-btn {
   padding: 20px 40px;
   font-size: 1.2rem;

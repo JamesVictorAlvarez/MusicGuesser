@@ -34,8 +34,10 @@ export async function getITunesTracksByTerm(term, limit = 50, country = 'US') {
 }
 
 // Try multiple popular terms to get a diverse list
-export async function getITunesRandomTracks(limit = 50) {
-	const terms = ['pop', 'rock', 'hip hop', 'indie', 'electronic', 'r&b', 'dance', 'latin'];
+export async function getITunesRandomTracks(limit = 50, preferredTerm) {
+	const terms = preferredTerm && preferredTerm !== 'any'
+		? [preferredTerm]
+		: ['pop', 'rock', 'hip hop', 'indie', 'electronic', 'r&b', 'dance', 'latin', 'country', 'jazz'];
 	for (const term of terms) {
 		const tracks = await getITunesTracksByTerm(term, limit);
 		if (tracks.length > 0) {
