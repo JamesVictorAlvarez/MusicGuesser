@@ -254,6 +254,57 @@
   cursor: not-allowed;
 }
 
+/* Multiple Choice */
+.choices {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.choice-btn {
+  text-align: left;
+  padding: 14px 16px;
+  border: 2px solid #e0e0e0;
+  border-radius: 12px;
+  background: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.choice-btn:hover:not(:disabled) {
+  border-color: #667eea;
+  box-shadow: 0 4px 14px rgba(102, 126, 234, 0.25);
+  transform: translateY(-1px);
+}
+
+.choice-btn:disabled {
+  cursor: default;
+}
+
+.choice-label {
+  display: block;
+  font-weight: 700;
+  color: #333;
+}
+
+.choice-sublabel {
+  display: block;
+  margin-top: 4px;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.choice-correct {
+  border-color: #22c55e !important;
+  background: #ecfdf5 !important;
+}
+
+.choice-incorrect {
+  border-color: #ef4444 !important;
+  background: #fef2f2 !important;
+}
+
 /* Result */
 .result {
   padding: 25px;
@@ -449,6 +500,10 @@
 
   .submit-btn {
     width: 100%;
+  }
+
+  .choices {
+    grid-template-columns: 1fr;
   }
 }
 

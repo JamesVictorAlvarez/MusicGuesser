@@ -7,6 +7,8 @@ function App() {
   const [currentTrack, setCurrentTrack] = useState(null)
   const [tracks, setTracks] = useState([])
   const [guess, setGuess] = useState('')
+  const [options, setOptions] = useState([]) // { label, sublabel, isCorrect }
+  const [selectedIdx, setSelectedIdx] = useState(null)
   const [isCorrect, setIsCorrect] = useState(null)
   const [score, setScore] = useState(0)
   const [showAnswer, setShowAnswer] = useState(false)
@@ -77,40 +79,78 @@ function App() {
     setIsCorrect(null)
     setShowAnswer(false)
     setTimePlayed(0)
+    setSelectedIdx(null)
+    
+    // Build options (3 distractors + 1 correct)
+    const distractorPool = tracks.filter((_, idx) => idx !== randomIndex)
+    const distractors = pickDistractors(track, distractorPool, gameMode, 3)
+    const builtOptions = buildOptionsList(track, distractors, gameMode)
+    setOptions(shuffleArray(builtOptions))
     
     // Remove the track from the pool so it doesn't repeat
     setTracks(prev => prev.filter((_, idx) => idx !== randomIndex))
   }
 
-  const handleSubmit = (e) => {
-    e.preventDefault()
-    if (!currentTrack || !guess.trim()) return
-
-    const normalizedGuess = guess.trim().toLowerCase()
-    let correct = false
-
-    if (gameMode === 'song') {
-      const normalizedTrackName = currentTrack.name.toLowerCase()
-      correct = normalizedGuess === normalizedTrackName || 
-                normalizedTrackName.includes(normalizedGuess) ||
-                normalizedGuess.includes(normalizedTrackName)
-    } else if (gameMode === 'artist') {
-      const artistNames = currentTrack.artists.map(a => a.name.toLowerCase())
-      correct = artistNames.some(name => 
-        name === normalizedGuess || 
-        name.includes(normalizedGuess) ||
-        normalizedGuess.includes(name)
-      )
+  function pickDistractors(correctTrack, pool, mode, count) {
+    const taken = new Set()
+    const out = []
+    const correctKey = mode === 'song' 
+      ? (correctTrack.name || '').toLowerCase()
+      : (correctTrack.artists?.[0]?.name || '').toLowerCase()
+    
+    for (const t of pool) {
+      if (out.length >= count) break
+      const key = mode === 'song' 
+        ? (t.name || '').toLowerCase()
+        : (t.artists?.[0]?.name || '').toLowerCase()
+      if (!key || key === correctKey) continue
+      if (taken.has(key)) continue
+      taken.add(key)
+      out.push(t)
     }
+    // If not enough, just sample random uniques ignoring similarity
+    while (out.length < count && pool.length > 0) {
+      const t = pool[Math.floor(Math.random() * pool.length)]
+      const key = mode === 'song' 
+        ? (t.name || '').toLowerCase()
+        : (t.artists?.[0]?.name || '').toLowerCase()
+      if (!key || key === correctKey) continue
+      if (taken.has(key)) continue
+      taken.add(key)
+      out.push(t)
+    }
+    return out.slice(0, count)
+  }
 
+  function buildOptionsList(correctTrack, distractors, mode) {
+    const toOption = (t, isCorrect) => ({
+      label: mode === 'song' ? (t.name || 'Unknown') : (t.artists?.[0]?.name || 'Unknown'),
+      sublabel: mode === 'song' ? (t.artists?.map(a => a.name).join(', ') || '') : (t.name || ''),
+      isCorrect
+    })
+    return [
+      toOption(correctTrack, true),
+      ...distractors.map(d => toOption(d, false))
+    ]
+  }
+
+  function shuffleArray(arr) {
+    const a = arr.slice()
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      const tmp = a[i]; a[i] = a[j]; a[j] = tmp
+    }
+    return a
+  }
+
+  const handleChoice = (idx) => {
+    if (!currentTrack || showAnswer) return
+    setSelectedIdx(idx)
+    const chosen = options[idx]
+    const correct = !!chosen?.isCorrect
     setIsCorrect(correct)
     setShowAnswer(true)
-    
-    if (correct) {
-      setScore(prev => prev + 1)
-    }
-
-    // Stop audio
+    if (correct) setScore(prev => prev + 1)
     if (audioRef.current) {
       audioRef.current.pause()
       audioRef.current.currentTime = 0
@@ -273,24 +313,29 @@ function App() {
               </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="guess-form">
-              <input
-                type="text"
-                value={guess}
-                onChange={(e) => setGuess(e.target.value)}
-                placeholder={gameMode === 'song' ? 'Enter song name...' : 'Enter artist name...'}
-                className="guess-input"
-                disabled={showAnswer}
-                autoFocus
-              />
-              <button 
-                type="submit" 
-                className="submit-btn"
-                disabled={!guess.trim() || showAnswer}
-              >
-                Submit
-              </button>
-            </form>
+            <div className="choices">
+              {options.map((opt, idx) => {
+                const isSelected = selectedIdx === idx
+                const stateClass = showAnswer
+                  ? opt.isCorrect
+                    ? 'choice-correct'
+                    : isSelected ? 'choice-incorrect' : ''
+                  : ''
+                return (
+                  <button
+                    key={idx}
+                    className={`choice-btn ${stateClass}`}
+                    onClick={() => handleChoice(idx)}
+                    disabled={showAnswer}
+                  >
+                    <span className="choice-label">{opt.label}</span>
+                    {opt.sublabel ? (
+                      <span className="choice-sublabel">{opt.sublabel}</span>
+                    ) : null}
+                  </button>
+                )
+              })}
+            </div>
 
             {showAnswer && (
               <div className={`result ${isCorrect ? 'correct' : 'incorrect'}`}>
