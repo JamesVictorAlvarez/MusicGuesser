@@ -23,44 +23,6 @@ export default function Menu({ onPlaySolo, onPlayMultiplayer, onSettings, select
       <div className="mode-selector">
         <h1>Music Guesser</h1>
         <div className="menu-content">
-          <div className="genre-grid">
-            {[
-              ['any','Any'],
-              ['pop','Pop'],['rock','Rock'],['hip-hop','Hip Hop'],['indie','Indie'],['electronic','Electronic'],
-              ['r-n-b','R&B'],['dance','Dance'],['latin','Latin'],['country','Country'],['jazz','Jazz'],['metal','Metal'],
-              ['k-pop','K‑Pop'], ['j-pop','J‑Pop'], ['opm','Philippine Pop'],
-            ].map(([val,label]) => {
-              const isType = ['k-pop','j-pop','opm'].includes(val)
-              const isActive = val === 'any' 
-                ? (selectedGenre === 'any' && selectedType === 'any')
-                : (isType ? selectedType === val : selectedGenre === val)
-              return (
-              <button
-                key={val}
-                className={`genre-card ${isActive ? 'genre-card-active' : ''}`}
-                onClick={() => {
-                  if (isType) {
-                    setSelectedType(val)
-                    setSelectedGenre('any')
-                    if (onGenreChange) onGenreChange({ genre: 'any', type: val })
-                  } else {
-                    setSelectedGenre(val)
-                    setSelectedType('any')
-                    if (onGenreChange) onGenreChange({ genre: val, type: 'any' })
-                  }
-                }}
-              >
-                {genreCovers[val] ? (
-                  <img src={genreCovers[val]} alt={label} className="genre-cover" />
-                ) : (
-                  <div className="genre-placeholder">{label}</div>
-                )}
-                <span className="genre-name">{label}</span>
-              </button>
-              )
-            })}
-          </div>
-
           <div className="menu-actions">
             <button
               className="menu-btn menu-btn-primary"
@@ -84,6 +46,46 @@ export default function Menu({ onPlaySolo, onPlayMultiplayer, onSettings, select
             >
               Settings
             </button>
+          </div>
+
+          <div className="genre-grid-wrapper">
+            <div className="genre-grid">
+              {[
+                ['any','Any'],
+                ['pop','Pop'],['rock','Rock'],['hip-hop','Hip Hop'],['indie','Indie'],['electronic','Electronic'],
+                ['r-n-b','R&B'],['dance','Dance'],['latin','Latin'],['country','Country'],['jazz','Jazz'],['metal','Metal'],
+                ['k-pop','K‑Pop'], ['j-pop','J‑Pop'], ['opm','Philippine Pop'],
+              ].map(([val,label]) => {
+                const isType = ['k-pop','j-pop','opm'].includes(val)
+                const isActive = val === 'any' 
+                  ? (selectedGenre === 'any' && selectedType === 'any')
+                  : (isType ? selectedType === val : selectedGenre === val)
+                return (
+                <button
+                  key={val}
+                  className={`genre-card ${isActive ? 'genre-card-active' : ''}`}
+                  onClick={() => {
+                    if (isType) {
+                      setSelectedType(val)
+                      setSelectedGenre('any')
+                      if (onGenreChange) onGenreChange({ genre: 'any', type: val })
+                    } else {
+                      setSelectedGenre(val)
+                      setSelectedType('any')
+                      if (onGenreChange) onGenreChange({ genre: val, type: 'any' })
+                    }
+                  }}
+                >
+                  {genreCovers[val] ? (
+                    <img src={genreCovers[val]} alt={label} className="genre-cover" />
+                  ) : (
+                    <div className="genre-placeholder">{label}</div>
+                  )}
+                  <span className="genre-name">{label}</span>
+                </button>
+                )
+              })}
+            </div>
           </div>
         </div>
       </div>

@@ -30,9 +30,48 @@
 
 .menu-content {
   display: flex;
+  flex-direction: row;
+  gap: 40px;
+  align-items: flex-start;
+  justify-content: center;
+  width: 100%;
+  max-width: 1400px;
+}
+
+.menu-actions {
+  display: flex;
   flex-direction: column;
-  gap: 30px;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+  justify-content: center;
   align-items: center;
+}
+
+.genre-grid-wrapper {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  max-height: calc(100vh - 200px);
+  padding-right: 10px;
+}
+
+.genre-grid-wrapper::-webkit-scrollbar {
+  width: 8px;
+}
+
+.genre-grid-wrapper::-webkit-scrollbar-track {
+  background: var(--bg);
+  border-radius: 4px;
+}
+
+.genre-grid-wrapper::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border-radius: 4px;
+}
+
+.genre-grid-wrapper::-webkit-scrollbar-thumb:hover {
+  background: var(--floatBorder);
 }
 
 .genre-grid {
@@ -40,7 +79,6 @@
   grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
   gap: 16px;
   width: 100%;
-  max-width: 1000px;
 }
 
 .genre-card {
@@ -94,11 +132,6 @@
 }
 
 
-.menu-actions {
-  display: flex;
-  gap: 12px;
-  margin-top: 10px;
-}
 
 .menu-btn {
   padding: 12px 24px;
@@ -110,6 +143,9 @@
   color: var(--fg);
   cursor: pointer;
   transition: all 0.2s ease;
+  width: 100%;
+  min-width: 200px;
+  text-align: center;
 }
 
 .menu-btn:hover {

@@ -14,6 +14,7 @@ export default function Game({
   isMultiplayer,
   currentRound,
   players,
+  audioStarted,
   onChoice,
   onLeave,
   onTimeUpdate
@@ -127,7 +128,7 @@ export default function Game({
                 key={idx}
                 className={`choice-btn ${stateClass}`}
                 onClick={() => onChoice(idx)}
-                disabled={showAnswer}
+                disabled={showAnswer || !audioStarted}
               >
                 <span className="choice-label">{opt.label}</span>
               </button>

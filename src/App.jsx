@@ -31,6 +31,7 @@ function App() {
   const [selectedType, setSelectedType] = useState('any')
   const [timePlayed, setTimePlayed] = useState(0)
   const [autoStartIn, setAutoStartIn] = useState(null)
+  const [audioStarted, setAudioStarted] = useState(false)
 
   // Multiplayer state
   const [isMultiplayer, setIsMultiplayer] = useState(false)
@@ -160,6 +161,7 @@ function App() {
       setSelectedIdx(null)
       setTimePlayed(0)
       setIsCorrect(null)
+      setAudioStarted(false)
       setLoading(false)
       
       if (data.track && data.track.id) {
@@ -174,7 +176,7 @@ function App() {
             stopAudio()
             setTimeout(() => {
               setCurrentTrack(null)
-            }, 800)
+            }, 3000)
           }
         })
       })
@@ -220,10 +222,24 @@ function App() {
     }
   }, [gameStarted, tracks, currentTrack, isMultiplayer])
 
-  // Auto-stop audio after 10 seconds
+  // Auto-stop audio after 10 seconds and track when audio starts
   useEffect(() => {
     if (audioRef.current && gameStarted && currentTrack) {
       const audio = audioRef.current
+      
+      // Listen for when audio actually starts playing
+      const handlePlay = () => {
+        setAudioStarted(true)
+      }
+      
+      // Listen for when audio pauses/stops (reset state)
+      const handlePause = () => {
+        // Don't reset audioStarted here, as it might pause during answer reveal
+      }
+      
+      audio.addEventListener('play', handlePlay)
+      audio.addEventListener('pause', handlePause)
+      
       const interval = setInterval(() => {
         if (audio.currentTime >= 10) {
           audio.pause()
@@ -232,7 +248,12 @@ function App() {
           setTimePlayed(audio.currentTime)
         }
       }, 100)
-      return () => clearInterval(interval)
+      
+      return () => {
+        clearInterval(interval)
+        audio.removeEventListener('play', handlePlay)
+        audio.removeEventListener('pause', handlePause)
+      }
     }
   }, [currentTrack, gameStarted, audioRef])
 
@@ -256,6 +277,7 @@ function App() {
     setTimePlayed(0)
     setSelectedIdx(null)
     setAutoStartIn(null)
+    setAudioStarted(false)
     roundStartAtRef.current = null
     clearTimers()
     
@@ -296,7 +318,7 @@ function App() {
             stopAudio()
             setTimeout(() => {
               setCurrentTrack(null)
-            }, 800)
+            }, 3000)
           }
         })
       })
@@ -304,7 +326,7 @@ function App() {
   }
 
   const handleChoice = (idx) => {
-    if (!currentTrack || showAnswer) return
+    if (!currentTrack || showAnswer || !audioStarted) return
     
     setSelectedIdx(idx)
     const chosen = options[idx]
@@ -330,13 +352,12 @@ function App() {
         const points = Math.max(0, 10 - Math.floor(elapsedSec))
         setScore(prev => prev + points)
       }
+      // Show answer for 3 seconds before moving to next song (both correct and incorrect)
       stopAudio()
       setTimeout(() => {
         handleNext()
-      }, 800)
+      }, 3000)
     }
-    
-    stopAudio()
   }
 
   const handleNext = () => {
@@ -500,6 +521,7 @@ function App() {
         isMultiplayer={isMultiplayer}
         currentRound={currentRound}
         players={players}
+        audioStarted={audioStarted}
         onChoice={handleChoice}
         onLeave={handleLeave}
         onTimeUpdate={setTimePlayed}
