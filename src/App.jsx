@@ -52,6 +52,12 @@ function App() {
       const fetchedTracks = await getRandomTracks(50)
       // Filter tracks that have preview URLs
       const tracksWithPreview = fetchedTracks.filter(track => track.preview_url)
+      console.log(`Loaded ${fetchedTracks.length} tracks, ${tracksWithPreview.length} with preview URLs`)
+      
+      if (tracksWithPreview.length === 0 && fetchedTracks.length > 0) {
+        console.warn('Tracks loaded but none have preview URLs. This might be a region/content availability issue.')
+      }
+      
       setTracks(tracksWithPreview)
     } catch (error) {
       console.error('Error loading tracks:', error)
@@ -187,11 +193,21 @@ function App() {
     )
   }
 
-  if (!currentTrack && tracks.length === 0) {
+  if (!currentTrack && tracks.length === 0 && !loading) {
     return (
       <div className="app">
         <div className="error">
-          <p>No tracks available. Please check your Spotify API credentials.</p>
+          <h2>No tracks available</h2>
+          <div className="error-details">
+            <p>This could be due to:</p>
+            <ul>
+              <li>Spotify API credentials not set in <code>.env</code> file</li>
+              <li>Invalid Client ID or Client Secret</li>
+              <li>No tracks with preview URLs found (preview availability varies by region)</li>
+              <li>API rate limits or connection issues</li>
+            </ul>
+            <p className="debug-info">Check the browser console (F12) for detailed error messages.</p>
+          </div>
           <button onClick={handleReset} className="reset-btn">Go Back</button>
         </div>
       </div>

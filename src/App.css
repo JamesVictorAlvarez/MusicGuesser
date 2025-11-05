@@ -358,6 +358,49 @@
   padding: 40px;
   text-align: center;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  max-width: 500px;
+}
+
+.error h2 {
+  color: #ee0979;
+  margin-bottom: 20px;
+}
+
+.error-details {
+  text-align: left;
+  margin: 20px 0;
+  padding: 20px;
+  background: #f8f8f8;
+  border-radius: 10px;
+}
+
+.error-details p {
+  margin-bottom: 10px;
+  color: #666;
+}
+
+.error-details ul {
+  margin: 10px 0 15px 20px;
+  color: #666;
+}
+
+.error-details li {
+  margin: 5px 0;
+}
+
+.error-details code {
+  background: #e0e0e0;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 0.9em;
+}
+
+.debug-info {
+  margin-top: 15px;
+  font-size: 0.9rem;
+  color: #999;
+  font-style: italic;
 }
 
 .reset-btn {

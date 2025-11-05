@@ -20,6 +20,7 @@ async function getAccessToken() {
   // In production, you MUST implement proper OAuth flow
   if (!SPOTIFY_CLIENT_ID || !SPOTIFY_CLIENT_SECRET) {
     console.warn('Spotify credentials not set. Using demo mode with mock data.');
+    console.log('Client ID exists:', !!SPOTIFY_CLIENT_ID);
     return null;
   }
 
@@ -33,15 +34,22 @@ async function getAccessToken() {
       body: 'grant_type=client_credentials'
     });
 
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      console.error('Spotify API error:', response.status, errorData);
+      throw new Error(`Failed to get access token: ${response.status} ${errorData.error_description || errorData.error || 'Unknown error'}`);
+    }
+
     const data = await response.json();
     
     if (data.access_token) {
       accessToken = data.access_token;
       tokenExpiry = Date.now() + (data.expires_in * 1000) - 60000; // Refresh 1 min before expiry
+      console.log('Successfully obtained Spotify access token');
       return accessToken;
     }
     
-    throw new Error('Failed to get access token');
+    throw new Error('Failed to get access token: No token in response');
   } catch (error) {
     console.error('Error getting access token:', error);
     return null;
@@ -80,29 +88,72 @@ export async function getRandomTracks(limit = 50) {
   const token = await getAccessToken();
   
   if (!token) {
+    console.log('No token available, returning mock tracks');
     return getMockTracks();
   }
 
-  // Get popular tracks by searching for common terms
-  const searchTerms = ['year:2020-2024', 'popular', 'top'];
-  const randomTerm = searchTerms[Math.floor(Math.random() * searchTerms.length)];
-  
-  try {
-    const response = await fetch(
-      `https://api.spotify.com/v1/search?q=${encodeURIComponent(randomTerm)}&type=track&limit=${limit}`,
-      {
-        headers: {
-          'Authorization': `Bearer ${token}`
+  // Try multiple search strategies to get tracks with preview URLs
+  const searchStrategies = [
+    { query: 'tag:new', name: 'new releases' },
+    { query: 'tag:hipster', name: 'hipster' },
+    { query: 'tag:2010s', name: '2010s' },
+    { query: 'genre:pop', name: 'pop' },
+    { query: 'genre:rock', name: 'rock' },
+    { query: 'genre:indie', name: 'indie' },
+    { query: 'year:2020-2024', name: 'recent' },
+  ];
+
+  // Try each strategy until we get tracks with previews
+  for (const strategy of searchStrategies) {
+    try {
+      const response = await fetch(
+        `https://api.spotify.com/v1/search?q=${encodeURIComponent(strategy.query)}&type=track&limit=${limit}&market=US`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error(`Spotify search error (${strategy.name}):`, response.status, errorData);
+        continue; // Try next strategy
+      }
+
+      const data = await response.json();
+      const tracks = data.tracks?.items || [];
+      
+      if (tracks.length > 0) {
+        console.log(`Found ${tracks.length} tracks using ${strategy.name} strategy`);
+        const tracksWithPreview = tracks.filter(track => track.preview_url);
+        console.log(`${tracksWithPreview.length} tracks have preview URLs`);
+        
+        if (tracksWithPreview.length > 0) {
+          return tracksWithPreview;
         }
       }
-    );
-
-    const data = await response.json();
-    return data.tracks?.items || [];
-  } catch (error) {
-    console.error('Error getting random tracks:', error);
-    return getMockTracks();
+    } catch (error) {
+      console.error(`Error searching tracks (${strategy.name}):`, error);
+      continue; // Try next strategy
+    }
   }
+
+  // If all strategies failed, try iTunes fallback
+  try {
+    const { getITunesRandomTracks } = await import('./itunes');
+    const itunesTracks = await getITunesRandomTracks(limit);
+    if (itunesTracks.length > 0) {
+      console.warn('Using iTunes fallback (Spotify previews unavailable)');
+      return itunesTracks;
+    }
+  } catch (e) {
+    console.error('iTunes fallback failed:', e);
+  }
+
+  // If everything failed, return mock data
+  console.warn('All strategies failed, returning mock tracks');
+  return getMockTracks();
 }
 
 // Mock data for demo purposes (when API credentials not available)
