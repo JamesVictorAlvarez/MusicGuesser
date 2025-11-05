@@ -154,7 +154,7 @@ function App() {
   function buildOptionsList(correctTrack, distractors, mode) {
     const toOption = (t, isCorrect) => ({
       label: mode === 'song' ? (t.name || 'Unknown') : (t.artists?.[0]?.name || 'Unknown'),
-      sublabel: mode === 'song' ? (t.artists?.map(a => a.name).join(', ') || '') : (t.name || ''),
+      sublabel: '',
       isCorrect
     })
     return [
@@ -481,9 +481,6 @@ function App() {
                     disabled={showAnswer}
                   >
                     <span className="choice-label">{opt.label}</span>
-                    {opt.sublabel ? (
-                      <span className="choice-sublabel">{opt.sublabel}</span>
-                    ) : null}
                   </button>
                 )
               })}
