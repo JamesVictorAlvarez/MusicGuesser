@@ -16,6 +16,11 @@ function App() {
   const [loading, setLoading] = useState(false)
   const audioRef = useRef(null)
   const [timePlayed, setTimePlayed] = useState(0)
+  const [autoStartIn, setAutoStartIn] = useState(null) // seconds until auto play
+  const roundStartAtRef = useRef(null)
+  const countdownIntervalRef = useRef(null)
+  const autoStartTimeoutRef = useRef(null)
+  const roundAutoEndTimeoutRef = useRef(null)
 
   // Load tracks when game starts
   useEffect(() => {
@@ -47,6 +52,15 @@ function App() {
       return () => clearInterval(interval)
     }
   }, [currentTrack, gameStarted])
+
+  // Cleanup timers on unmount
+  useEffect(() => {
+    return () => {
+      clearInterval(countdownIntervalRef.current)
+      clearTimeout(autoStartTimeoutRef.current)
+      clearTimeout(roundAutoEndTimeoutRef.current)
+    }
+  }, [])
 
   const loadTracks = async () => {
     setLoading(true)
@@ -80,6 +94,11 @@ function App() {
     setShowAnswer(false)
     setTimePlayed(0)
     setSelectedIdx(null)
+    setAutoStartIn(null)
+    roundStartAtRef.current = null
+    clearInterval(countdownIntervalRef.current)
+    clearTimeout(autoStartTimeoutRef.current)
+    clearTimeout(roundAutoEndTimeoutRef.current)
     
     // Build options (3 distractors + 1 correct)
     const distractorPool = tracks.filter((_, idx) => idx !== randomIndex)
@@ -89,6 +108,8 @@ function App() {
     
     // Remove the track from the pool so it doesn't repeat
     setTracks(prev => prev.filter((_, idx) => idx !== randomIndex))
+    // Auto start after 5 seconds
+    startAutoPlayCountdown(5)
   }
 
   function pickDistractors(correctTrack, pool, mode, count) {
@@ -143,6 +164,49 @@ function App() {
     return a
   }
 
+  function startAudioPlayback() {
+    if (!audioRef.current) return
+    audioRef.current.currentTime = 0
+    audioRef.current.play()
+    roundStartAtRef.current = performance.now()
+    // Auto end round at 10s if no answer
+    clearTimeout(roundAutoEndTimeoutRef.current)
+    roundAutoEndTimeoutRef.current = setTimeout(() => {
+      if (!showAnswer) {
+        setIsCorrect(false)
+        setShowAnswer(true)
+        if (audioRef.current) {
+          audioRef.current.pause()
+          audioRef.current.currentTime = 0
+        }
+        // Auto-advance after brief pause
+        setTimeout(() => {
+          setCurrentTrack(null)
+        }, 800)
+      }
+    }, 10000)
+  }
+
+  function startAutoPlayCountdown(seconds) {
+    setAutoStartIn(seconds)
+    clearInterval(countdownIntervalRef.current)
+    clearTimeout(autoStartTimeoutRef.current)
+    countdownIntervalRef.current = setInterval(() => {
+      setAutoStartIn(prev => {
+        if (prev === null) return null
+        if (prev <= 1) {
+          clearInterval(countdownIntervalRef.current)
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+    autoStartTimeoutRef.current = setTimeout(() => {
+      setAutoStartIn(0)
+      startAudioPlayback()
+    }, seconds * 1000)
+  }
+
   const handleChoice = (idx) => {
     if (!currentTrack || showAnswer) return
     setSelectedIdx(idx)
@@ -150,11 +214,20 @@ function App() {
     const correct = !!chosen?.isCorrect
     setIsCorrect(correct)
     setShowAnswer(true)
-    if (correct) setScore(prev => prev + 1)
+    if (correct) {
+      const elapsedSec = typeof timePlayed === 'number' && timePlayed > 0
+        ? timePlayed
+        : (roundStartAtRef.current ? (performance.now() - roundStartAtRef.current) / 1000 : 0)
+      const points = Math.max(0, 10 - Math.floor(elapsedSec))
+      setScore(prev => prev + points)
+    }
     if (audioRef.current) {
       audioRef.current.pause()
       audioRef.current.currentTime = 0
     }
+    setTimeout(() => {
+      handleNext()
+    }, 800)
   }
 
   const handleNext = () => {
@@ -169,9 +242,11 @@ function App() {
   }
 
   const handlePlay = () => {
-    if (audioRef.current && currentTrack) {
-      audioRef.current.currentTime = 0
-      audioRef.current.play()
+    if (currentTrack) {
+      clearInterval(countdownIntervalRef.current)
+      clearTimeout(autoStartTimeoutRef.current)
+      setAutoStartIn(0)
+      startAudioPlayback()
     }
   }
 
@@ -292,13 +367,18 @@ function App() {
                       src={currentTrack.preview_url}
                       onEnded={() => setTimePlayed(10)}
                     />
-                    <button 
-                      onClick={handlePlay} 
-                      className="play-btn"
-                      disabled={showAnswer}
-                    >
-                      ▶️ Play 10s Clip
-                    </button>
+                    {autoStartIn !== null && autoStartIn > 0 ? (
+                      <div className="countdown">Starting in {autoStartIn}s…</div>
+                    ) : null}
+                    <div className="controls-row">
+                      <button 
+                        onClick={handlePlay} 
+                        className="play-btn"
+                        disabled={showAnswer}
+                      >
+                        ▶️ Play
+                      </button>
+                    </div>
                     <div className="progress-bar">
                       <div 
                         className="progress-fill" 
@@ -353,9 +433,6 @@ function App() {
                     <p><strong>Artist:</strong> {currentTrack.artists.map(a => a.name).join(', ')}</p>
                   </div>
                 </div>
-                <button onClick={handleNext} className="next-btn">
-                  Next Track →
-                </button>
               </div>
             )}
           </>
