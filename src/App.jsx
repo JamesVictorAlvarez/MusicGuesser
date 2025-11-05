@@ -33,13 +33,15 @@ function App() {
   const [autoStartIn, setAutoStartIn] = useState(null)
   const [audioStarted, setAudioStarted] = useState(false)
 
+  // Round tracking (for both single and multiplayer)
+  const [currentRound, setCurrentRound] = useState(0)
+  
   // Multiplayer state
   const [isMultiplayer, setIsMultiplayer] = useState(false)
   const [roomId, setRoomId] = useState('')
   const [playerName, setPlayerName] = useState('')
   const [roomCode, setRoomCode] = useState('')
   const [players, setPlayers] = useState([])
-  const [currentRound, setCurrentRound] = useState(0)
   const [gameOver, setGameOver] = useState(false)
   const [finalLeaderboard, setFinalLeaderboard] = useState([])
 
@@ -349,7 +351,9 @@ function App() {
       })
     } else {
       if (correct) {
-        const points = Math.max(0, 10 - Math.floor(elapsedSec))
+        // Points in hundreds, with milliseconds counting
+        // Max 1000 points at 0 seconds, 0 points at 10 seconds
+        const points = Math.max(0, Math.floor((10 - elapsedSec) * 100))
         setScore(prev => prev + points)
       }
       // Show answer for 3 seconds before moving to next song (both correct and incorrect)
@@ -361,6 +365,20 @@ function App() {
   }
 
   const handleNext = () => {
+    if (!isMultiplayer) {
+      // Single player: increment round and check if game is over
+      const nextRound = currentRound + 1
+      setCurrentRound(nextRound)
+      
+      if (nextRound >= 10) {
+        // Game over for single player
+        setGameOver(true)
+        setGameStarted(false)
+        setCurrentTrack(null)
+        return
+      }
+    }
+    
     if (tracks.length === 0) {
       loadTracks(selectedGenre, selectedType).then(() => {
         setCurrentTrack(null)
@@ -423,6 +441,9 @@ function App() {
           setSelectedGenre(genre)
           setSelectedType(type)
           setIsMultiplayer(false)
+          setCurrentRound(1)
+          setGameOver(false)
+          setScore(0)
           setView('game')
           setGameStarted(true)
         }}
@@ -469,6 +490,37 @@ function App() {
           handleLeave()
         }}
       />
+    )
+  }
+
+  // Show single player results if game is over
+  if (!isMultiplayer && gameOver && view === 'game') {
+    return (
+      <div className="app">
+        <div className="game-container">
+          <div className="header">
+            <h1>Game Over!</h1>
+          </div>
+          <div className="leaderboard">
+            <h2>Final Score</h2>
+            <div className="leaderboard-list">
+              <div className="leaderboard-item winner">
+                <div className="rank">#1</div>
+                <div className="player-info">
+                  <span className="player-name">You</span>
+                </div>
+                <div className="player-score">{score} pts</div>
+              </div>
+            </div>
+            <button
+              className="menu-btn menu-btn-primary"
+              onClick={handleLeave}
+            >
+              Back to Menu
+            </button>
+          </div>
+        </div>
+      </div>
     )
   }
 

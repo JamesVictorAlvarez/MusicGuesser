@@ -63,7 +63,10 @@ export default function Game({
                 </div>
               </>
             ) : (
-              <span>Score: {score}</span>
+              <>
+                <span>Round {currentRound}/10</span>
+                <span>Score: {score}</span>
+              </>
             )}
             <button onClick={onLeave} className="reset-btn-small">Leave</button>
           </div>

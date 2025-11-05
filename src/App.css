@@ -32,10 +32,12 @@
   display: flex;
   flex-direction: row;
   gap: 40px;
-  align-items: flex-start;
+  align-items: stretch;
   justify-content: center;
   width: 100%;
   max-width: 1400px;
+  min-height: 60vh;
+  position: relative;
 }
 
 .menu-actions {
@@ -46,6 +48,19 @@
   min-width: 0;
   justify-content: center;
   align-items: center;
+  align-self: center;
+  padding-right: 20px;
+  position: relative;
+}
+
+.menu-actions::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 1px;
+  height: 100%;
+  background: var(--line);
 }
 
 .genre-grid-wrapper {
@@ -54,6 +69,7 @@
   overflow-y: auto;
   max-height: calc(100vh - 200px);
   padding-right: 10px;
+  padding-left: 20px;
 }
 
 .genre-grid-wrapper::-webkit-scrollbar {
@@ -137,31 +153,61 @@
   padding: 12px 24px;
   font-size: 1rem;
   font-weight: 600;
-  border: 1px solid var(--floatBorder);
+  font-family: 'Barlow Condensed', sans-serif;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  border: 2px solid var(--floatBorder);
   border-radius: 8px;
   background: var(--inactiveBg);
   color: var(--fg);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.3s ease;
   width: 100%;
-  min-width: 200px;
+  min-width: 180px;
+  max-width: 200px;
   text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.menu-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  transition: left 0.5s ease;
+}
+
+.menu-btn:hover::before {
+  left: 100%;
 }
 
 .menu-btn:hover {
-  border-color: var(--keyword);
-  transform: translateY(-1px);
+  border-color: var(--hint);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  background: var(--visual);
+}
+
+.menu-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
 }
 
 .menu-btn-primary {
   background: var(--search);
   border-color: var(--hint);
+  color: var(--fg);
 }
 
 .menu-btn-primary:hover {
   background: var(--hint);
   border-color: var(--hint);
   color: var(--bg);
+  box-shadow: 0 4px 16px rgba(126, 152, 232, 0.4);
 }
 
 .mode-btn:active {

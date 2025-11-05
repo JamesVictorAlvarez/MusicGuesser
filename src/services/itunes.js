@@ -48,4 +48,51 @@ export async function getITunesRandomTracks(limit = 50, preferredTerm) {
 	return [];
 }
 
+// Get album artwork for a genre by searching iTunes
+export async function getITunesAlbumArtworkForGenre(genre) {
+	try {
+		const searchTerms = {
+			'pop': 'pop music',
+			'rock': 'rock music',
+			'hip-hop': 'hip hop',
+			'indie': 'indie music',
+			'electronic': 'electronic music',
+			'r-n-b': 'r&b',
+			'dance': 'dance music',
+			'latin': 'latin music',
+			'country': 'country music',
+			'jazz': 'jazz music',
+			'k-pop': 'k-pop',
+			'j-pop': 'j-pop',
+			'opm': 'philippine pop',
+			'metal': 'metal music',
+		};
+		
+		const searchTerm = searchTerms[genre] || genre;
+		const url = `https://itunes.apple.com/search?term=${encodeURIComponent(searchTerm)}&entity=album&limit=10&country=US`;
+		const res = await fetch(url);
+		
+		if (!res.ok) {
+			console.error('iTunes API error for artwork:', res.status);
+			return null;
+		}
+		
+		const data = await res.json();
+		const albums = Array.isArray(data.results) ? data.results : [];
+		
+		// Find first album with artwork
+		for (const album of albums) {
+			if (album.artworkUrl100) {
+				// Return higher resolution artwork (replace 100x100 with larger size)
+				return album.artworkUrl100.replace('100x100', '600x600');
+			}
+		}
+		
+		return null;
+	} catch (err) {
+		console.error('Error fetching iTunes album artwork:', err);
+		return null;
+	}
+}
+
 

@@ -128,7 +128,9 @@ io.on('connection', (socket) => {
     })
     
     if (isCorrect) {
-      const points = Math.max(0, 10 - Math.floor(timeTaken))
+      // Points in hundreds, with milliseconds counting
+      // Max 1000 points at 0 seconds, 0 points at 10 seconds
+      const points = Math.max(0, Math.floor((10 - timeTaken) * 100))
       player.score += points
       player.currentRoundScore = points
     } else {

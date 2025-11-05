@@ -224,56 +224,69 @@ export async function getAvailableGenres() {
 // Get playlist cover for a genre by searching for featured playlists
 export async function getPlaylistCoverForGenre(genre) {
   const token = await getAccessToken();
-  if (!token) return null;
   
-  try {
-    // Search for playlists with genre name
-    const searchTerms = {
-      'pop': 'top hits pop',
-      'rock': 'rock classics',
-      'hip-hop': 'hip hop hits',
-      'indie': 'indie music',
-      'electronic': 'electronic dance',
-      'r-n-b': 'r&b hits',
-      'dance': 'dance hits',
-      'latin': 'latin music',
-      'country': 'country hits',
-      'jazz': 'jazz classics',
-      'k-pop': 'k-pop',
-      'j-pop': 'j-pop',
-      'opm': 'philippine pop',
-      'metal': 'metal music',
-      'soul': 'soul music',
-      'funk': 'funk music',
-      'blues': 'blues classics',
-      'reggae': 'reggae music'
-    };
-    
-    const searchTerm = searchTerms[genre] || genre;
-    const response = await fetch(
-      `https://api.spotify.com/v1/search?q=${encodeURIComponent(searchTerm)}&type=playlist&limit=5`,
-      {
-        headers: { 'Authorization': `Bearer ${token}` }
+  // Try Spotify first if we have a token
+  if (token) {
+    try {
+      // Search for playlists with genre name
+      const searchTerms = {
+        'pop': 'top hits pop',
+        'rock': 'rock classics',
+        'hip-hop': 'hip hop hits',
+        'indie': 'indie music',
+        'electronic': 'electronic dance',
+        'r-n-b': 'r&b hits',
+        'dance': 'dance hits',
+        'latin': 'latin music',
+        'country': 'country hits',
+        'jazz': 'jazz classics',
+        'k-pop': 'k-pop',
+        'j-pop': 'j-pop',
+        'opm': 'philippine pop',
+        'metal': 'metal music',
+        'soul': 'soul music',
+        'funk': 'funk music',
+        'blues': 'blues classics',
+        'reggae': 'reggae music'
+      };
+      
+      const searchTerm = searchTerms[genre] || genre;
+      const response = await fetch(
+        `https://api.spotify.com/v1/search?q=${encodeURIComponent(searchTerm)}&type=playlist&limit=5`,
+        {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }
+      );
+      
+      if (response.ok) {
+        const data = await response.json();
+        const playlists = data.playlists?.items || [];
+        
+        // Find first playlist with cover image
+        for (const playlist of playlists) {
+          if (playlist.images && playlist.images.length > 0) {
+            return playlist.images[0].url;
+          }
+        }
       }
-    );
-    
-    if (!response.ok) return null;
-    
-    const data = await response.json();
-    const playlists = data.playlists?.items || [];
-    
-    // Find first playlist with cover image
-    for (const playlist of playlists) {
-      if (playlist.images && playlist.images.length > 0) {
-        return playlist.images[0].url;
-      }
+    } catch (e) {
+      console.error('Error fetching playlist cover from Spotify:', e);
     }
-    
-    return null;
-  } catch (e) {
-    console.error('Error fetching playlist cover:', e);
-    return null;
   }
+  
+  // Fallback to iTunes if Spotify fails or no token
+  try {
+    const { getITunesAlbumArtworkForGenre } = await import('./itunes.js');
+    const iTunesCover = await getITunesAlbumArtworkForGenre(genre);
+    if (iTunesCover) {
+      console.log(`Using iTunes fallback for ${genre} cover`);
+      return iTunesCover;
+    }
+  } catch (e) {
+    console.error('Error fetching iTunes album artwork:', e);
+  }
+  
+  return null;
 }
 
 // Mock data for demo purposes (when API credentials not available)
