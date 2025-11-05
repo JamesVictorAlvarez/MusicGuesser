@@ -3,7 +3,8 @@ import { getRandomTracks } from './services/spotify'
 import './App.css'
 
 function App() {
-  const [gameMode, setGameMode] = useState(null) // 'song' or 'artist'
+  const [gameMode, setGameMode] = useState(null) // 'song' or 'artist' (set per round)
+  const [view, setView] = useState('menu') // 'menu' | 'settings' | 'game'
   const [currentTrack, setCurrentTrack] = useState(null)
   const [tracks, setTracks] = useState([])
   const [guess, setGuess] = useState('')
@@ -100,10 +101,14 @@ function App() {
     clearTimeout(autoStartTimeoutRef.current)
     clearTimeout(roundAutoEndTimeoutRef.current)
     
+    // Randomly choose mode each round (song or artist)
+    const mode = Math.random() < 0.5 ? 'song' : 'artist'
+    setGameMode(mode)
+
     // Build options (3 distractors + 1 correct)
     const distractorPool = tracks.filter((_, idx) => idx !== randomIndex)
-    const distractors = pickDistractors(track, distractorPool, gameMode, 3)
-    const builtOptions = buildOptionsList(track, distractors, gameMode)
+    const distractors = pickDistractors(track, distractorPool, mode, 3)
+    const builtOptions = buildOptionsList(track, distractors, mode)
     setOptions(shuffleArray(builtOptions))
     
     // Remove the track from the pool so it doesn't repeat
@@ -250,7 +255,7 @@ function App() {
     }
   }
 
-  const handleReset = () => {
+  const handleLeave = () => {
     setGameMode(null)
     setCurrentTrack(null)
     setTracks([])
@@ -260,42 +265,65 @@ function App() {
     setGameStarted(false)
     setScore(0)
     setTimePlayed(0)
+    setSelectedIdx(null)
+    setOptions([])
+    setView('menu')
+    clearInterval(countdownIntervalRef.current)
+    clearTimeout(autoStartTimeoutRef.current)
+    clearTimeout(roundAutoEndTimeoutRef.current)
     if (audioRef.current) {
       audioRef.current.pause()
       audioRef.current.currentTime = 0
     }
   }
 
-  if (!gameMode) {
+  // Menu / Settings screens
+  if (view === 'menu') {
     return (
       <div className="app">
         <div className="mode-selector">
           <h1>🎵 Music Guesser</h1>
-          <p className="subtitle">Test your music knowledge!</p>
+          <p className="subtitle">Guess the song or the artist. Fast!</p>
           <div className="mode-buttons">
-            <button 
+            <button
               className="mode-btn"
               onClick={() => {
-                setGameMode('song')
+                setView('game')
                 setGameStarted(true)
               }}
             >
-              🎧 Guess the Song
+              ▶️ Play
             </button>
-            <button 
+            <button
               className="mode-btn"
-              onClick={() => {
-                setGameMode('artist')
-                setGameStarted(true)
-              }}
+              onClick={() => setView('settings')}
             >
-              🎤 Guess the Artist
+              ⚙️ Settings
             </button>
           </div>
         </div>
       </div>
     )
   }
+
+  if (view === 'settings') {
+    return (
+      <div className="app">
+        <div className="game-container">
+          <div className="header">
+            <h1>⚙️ Settings</h1>
+            <div className="score">
+              <button onClick={() => setView('menu')} className="reset-btn-small">Back</button>
+            </div>
+          </div>
+          <p>Auto-start after 5 seconds is enabled. Time-based scoring from 10 to 0.</p>
+          <p>More settings coming soon.</p>
+        </div>
+      </div>
+    )
+  }
+
+  // No mode selection screen; rounds mix song/artist automatically
 
   if (loading && !currentTrack) {
     return (
@@ -323,7 +351,7 @@ function App() {
             </ul>
             <p className="debug-info">Check the browser console (F12) for detailed error messages.</p>
           </div>
-          <button onClick={handleReset} className="reset-btn">Go Back</button>
+          <button onClick={handleLeave} className="reset-btn">Go Back</button>
         </div>
       </div>
     )
@@ -336,7 +364,7 @@ function App() {
           <h1>🎵 Music Guesser</h1>
           <div className="score">
             <span>Score: {score}</span>
-            <button onClick={handleReset} className="reset-btn-small">Reset</button>
+            <button onClick={handleLeave} className="reset-btn-small">Leave</button>
           </div>
         </div>
 
@@ -370,15 +398,6 @@ function App() {
                     {autoStartIn !== null && autoStartIn > 0 ? (
                       <div className="countdown">Starting in {autoStartIn}s…</div>
                     ) : null}
-                    <div className="controls-row">
-                      <button 
-                        onClick={handlePlay} 
-                        className="play-btn"
-                        disabled={showAnswer}
-                      >
-                        ▶️ Play
-                      </button>
-                    </div>
                     <div className="progress-bar">
                       <div 
                         className="progress-fill" 
