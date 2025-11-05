@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { getRandomTracks } from './services/spotify'
+import { getRandomTracks, getPlaylistCoverForGenre } from './services/spotify'
 import './App.css'
 
 function App() {
@@ -16,8 +16,8 @@ function App() {
   const [gameStarted, setGameStarted] = useState(false)
   const [loading, setLoading] = useState(false)
   const [selectedGenre, setSelectedGenre] = useState('any')
-  const [selectedYear, setSelectedYear] = useState('any')
   const [selectedType, setSelectedType] = useState('any')
+  const [genreCovers, setGenreCovers] = useState({})
   const audioRef = useRef(null)
   const [timePlayed, setTimePlayed] = useState(0)
   const [autoStartIn, setAutoStartIn] = useState(null) // seconds until auto play
@@ -25,6 +25,21 @@ function App() {
   const countdownIntervalRef = useRef(null)
   const autoStartTimeoutRef = useRef(null)
   const roundAutoEndTimeoutRef = useRef(null)
+
+  // Load playlist covers when menu is shown
+  useEffect(() => {
+    if (view === 'menu') {
+      const genres = ['pop', 'rock', 'hip-hop', 'indie', 'electronic', 'r-n-b', 'dance', 'latin', 'country', 'jazz', 'metal', 'k-pop', 'j-pop', 'opm']
+      genres.forEach(async (genre) => {
+        if (!genreCovers[genre]) {
+          const cover = await getPlaylistCoverForGenre(genre)
+          if (cover) {
+            setGenreCovers(prev => ({ ...prev, [genre]: cover }))
+          }
+        }
+      })
+    }
+  }, [view])
 
   // Load tracks when game starts
   useEffect(() => {
@@ -69,7 +84,7 @@ function App() {
   const loadTracks = async () => {
     setLoading(true)
     try {
-      const fetchedTracks = await getRandomTracks(50, selectedGenre, selectedYear, selectedType)
+      const fetchedTracks = await getRandomTracks(50, selectedGenre, 'any', selectedType)
       // Filter tracks that have preview URLs
       const tracksWithPreview = fetchedTracks.filter(track => track.preview_url)
       console.log(`Loaded ${fetchedTracks.length} tracks, ${tracksWithPreview.length} with preview URLs`)
@@ -127,27 +142,46 @@ function App() {
       ? (correctTrack.name || '').toLowerCase()
       : (correctTrack.artists?.[0]?.name || '').toLowerCase()
     
-    for (const t of pool) {
+    // Also track by track ID to avoid duplicates
+    const takenIds = new Set()
+    takenIds.add(correctTrack.id)
+    
+    // Shuffle pool first for better randomness
+    const shuffledPool = [...pool].sort(() => Math.random() - 0.5)
+    
+    for (const t of shuffledPool) {
       if (out.length >= count) break
+      
+      // Skip if same track ID
+      if (takenIds.has(t.id)) continue
+      
       const key = mode === 'song' 
         ? (t.name || '').toLowerCase()
         : (t.artists?.[0]?.name || '').toLowerCase()
+      
       if (!key || key === correctKey) continue
       if (taken.has(key)) continue
+      
       taken.add(key)
+      takenIds.add(t.id)
       out.push(t)
     }
-    // If not enough, just sample random uniques ignoring similarity
-    while (out.length < count && pool.length > 0) {
-      const t = pool[Math.floor(Math.random() * pool.length)]
-      const key = mode === 'song' 
-        ? (t.name || '').toLowerCase()
-        : (t.artists?.[0]?.name || '').toLowerCase()
-      if (!key || key === correctKey) continue
-      if (taken.has(key)) continue
-      taken.add(key)
-      out.push(t)
+    
+    // If not enough unique options, try again with remaining pool
+    if (out.length < count) {
+      const remaining = shuffledPool.filter(t => !takenIds.has(t.id))
+      for (const t of remaining) {
+        if (out.length >= count) break
+        if (takenIds.has(t.id)) continue
+        const key = mode === 'song' 
+          ? (t.name || '').toLowerCase()
+          : (t.artists?.[0]?.name || '').toLowerCase()
+        if (!key || key === correctKey) continue
+        takenIds.add(t.id)
+        out.push(t)
+      }
     }
+    
     return out.slice(0, count)
   }
 
@@ -155,12 +189,34 @@ function App() {
     const toOption = (t, isCorrect) => ({
       label: mode === 'song' ? (t.name || 'Unknown') : (t.artists?.[0]?.name || 'Unknown'),
       sublabel: '',
-      isCorrect
+      isCorrect,
+      trackId: t.id
     })
-    return [
+    
+    const allOptions = [
       toOption(correctTrack, true),
       ...distractors.map(d => toOption(d, false))
     ]
+    
+    // Final check: ensure no duplicate labels in the options
+    const seenLabels = new Set()
+    const uniqueOptions = []
+    for (const opt of allOptions) {
+      const labelKey = opt.label.toLowerCase()
+      if (!seenLabels.has(labelKey)) {
+        seenLabels.add(labelKey)
+        uniqueOptions.push(opt)
+      }
+    }
+    
+    // If we lost the correct answer, add it back and remove a distractor
+    const hasCorrect = uniqueOptions.some(opt => opt.isCorrect)
+    if (!hasCorrect) {
+      uniqueOptions.pop()
+      uniqueOptions.push(toOption(correctTrack, true))
+    }
+    
+    return uniqueOptions
   }
 
   function shuffleArray(arr) {
@@ -285,74 +341,61 @@ function App() {
     return (
       <div className="app">
         <div className="mode-selector">
-          <h1>🎵 Music Guesser</h1>
-          <p className="subtitle">Guess the song or the artist. Fast!</p>
-          <div className="picker-grid">
-            <div className="picker">
-              <label className="picker-label">Genre</label>
-              <div className="pill-grid">
-                {[
-                  ['any','Any'],
-                  ['pop','Pop'],['rock','Rock'],['hip-hop','Hip Hop'],['indie','Indie'],['electronic','Electronic'],
-                  ['r-n-b','R&B'],['dance','Dance'],['latin','Latin'],['country','Country'],['jazz','Jazz'],['metal','Metal'],
-                ].map(([val,label]) => (
-                  <button
-                    key={val}
-                    className={`pill ${selectedGenre===val?'pill-active':''}`}
-                    onClick={() => setSelectedGenre(val)}
-                  >{label}</button>
-                ))}
-              </div>
+          <h1>Music Guesser</h1>
+          <div className="menu-content">
+            <div className="genre-grid">
+              {[
+                ['any','Any'],
+                ['pop','Pop'],['rock','Rock'],['hip-hop','Hip Hop'],['indie','Indie'],['electronic','Electronic'],
+                ['r-n-b','R&B'],['dance','Dance'],['latin','Latin'],['country','Country'],['jazz','Jazz'],['metal','Metal'],
+                ['k-pop','K‑Pop'], ['j-pop','J‑Pop'], ['opm','Philippine Pop'],
+              ].map(([val,label]) => {
+                const isType = ['k-pop','j-pop','opm'].includes(val)
+                const isActive = val === 'any' 
+                  ? (selectedGenre === 'any' && selectedType === 'any')
+                  : (isType ? selectedType === val : selectedGenre === val)
+                return (
+                <button
+                  key={val}
+                  className={`genre-card ${isActive ? 'genre-card-active' : ''}`}
+                  onClick={() => {
+                    if (isType) {
+                      setSelectedType(val)
+                      setSelectedGenre('any')
+                    } else {
+                      setSelectedGenre(val)
+                      setSelectedType('any')
+                    }
+                  }}
+                >
+                  {genreCovers[val] ? (
+                    <img src={genreCovers[val]} alt={label} className="genre-cover" />
+                  ) : (
+                    <div className="genre-placeholder">{label}</div>
+                  )}
+                  <span className="genre-name">{label}</span>
+                </button>
+                )
+              })}
             </div>
 
-            <div className="picker">
-              <label className="picker-label">Type</label>
-              <div className="pill-grid">
-                {[
-                  ['any','Any'],
-                  ['k-pop','K‑Pop'], ['j-pop','J‑Pop'], ['opm','Philippine Pop'],
-                ].map(([val,label]) => (
-                  <button
-                    key={val}
-                    className={`pill ${selectedType===val?'pill-active':''}`}
-                    onClick={() => setSelectedType(val)}
-                  >{label}</button>
-                ))}
-              </div>
+            <div className="menu-actions">
+              <button
+                className="menu-btn menu-btn-primary"
+                onClick={() => {
+                  setView('game')
+                  setGameStarted(true)
+                }}
+              >
+                Play
+              </button>
+              <button
+                className="menu-btn"
+                onClick={() => setView('settings')}
+              >
+                Settings
+              </button>
             </div>
-
-            <div className="picker">
-              <label className="picker-label">Year</label>
-              <div className="pill-grid">
-                {[
-                  ['any','Any'], ['2020s','2020s'], ['2010s','2010s'], ['2000s','2000s'], ['1990s','1990s'],
-                  ['2024','2024'], ['2023','2023'], ['2022','2022']
-                ].map(([val,label]) => (
-                  <button
-                    key={val}
-                    className={`pill ${selectedYear===val?'pill-active':''}`}
-                    onClick={() => setSelectedYear(val)}
-                  >{label}</button>
-                ))}
-              </div>
-            </div>
-          </div>
-          <div className="mode-buttons">
-            <button
-              className="mode-btn"
-              onClick={() => {
-                setView('game')
-                setGameStarted(true)
-              }}
-            >
-              ▶️ Play
-            </button>
-            <button
-              className="mode-btn"
-              onClick={() => setView('settings')}
-            >
-              ⚙️ Settings
-            </button>
           </div>
         </div>
       </div>
@@ -414,7 +457,7 @@ function App() {
     <div className="app">
       <div className="game-container">
         <div className="header">
-          <h1>🎵 Music Guesser</h1>
+          <h1>Music Guesser</h1>
           <div className="score">
             <span>Score: {score}</span>
             <button onClick={handleLeave} className="reset-btn-small">Leave</button>
@@ -428,17 +471,24 @@ function App() {
         {currentTrack && (
           <>
             <div className="audio-section">
-              <div className="album-art">
-                {currentTrack.album?.images?.[0]?.url ? (
-                  <img 
-                    src={currentTrack.album.images[0].url} 
-                    alt="Album cover"
-                    className={showAnswer ? '' : 'blurred'}
-                  />
-                ) : (
-                  <div className="placeholder-art">🎵</div>
-                )}
-              </div>
+              {autoStartIn !== null && autoStartIn > 0 ? (
+                <div className="loading-circle-container">
+                  <div className="loading-circle">
+                    <div className="loading-circle-inner"></div>
+                  </div>
+                </div>
+              ) : !showAnswer ? null : (
+                <div className="album-art">
+                  {currentTrack.album?.images?.[0]?.url ? (
+                    <img 
+                      src={currentTrack.album.images[0].url} 
+                      alt="Album cover"
+                    />
+                  ) : (
+                    <div className="placeholder-art">🎵</div>
+                  )}
+                </div>
+              )}
               
               <div className="audio-controls">
                 {currentTrack.preview_url ? (
@@ -448,9 +498,6 @@ function App() {
                       src={currentTrack.preview_url}
                       onEnded={() => setTimePlayed(10)}
                     />
-                    {autoStartIn !== null && autoStartIn > 0 ? (
-                      <div className="countdown">Starting in {autoStartIn}s…</div>
-                    ) : null}
                     <div className="progress-bar">
                       <div 
                         className="progress-fill" 
@@ -486,24 +533,6 @@ function App() {
               })}
             </div>
 
-            {showAnswer && (
-              <div className={`result ${isCorrect ? 'correct' : 'incorrect'}`}>
-                <div className="result-icon">
-                  {isCorrect ? '✅' : '❌'}
-                </div>
-                <div className="result-text">
-                  {isCorrect ? (
-                    <p className="correct-text">Correct! 🎉</p>
-                  ) : (
-                    <p className="incorrect-text">Not quite!</p>
-                  )}
-                  <div className="answer">
-                    <p><strong>Song:</strong> {currentTrack.name}</p>
-                    <p><strong>Artist:</strong> {currentTrack.artists.map(a => a.name).join(', ')}</p>
-                  </div>
-                </div>
-              </div>
-            )}
           </>
         )}
       </div>
