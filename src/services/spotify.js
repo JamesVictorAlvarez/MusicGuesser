@@ -84,7 +84,7 @@ export async function searchTracks(query, limit = 20) {
 }
 
 // Get random popular tracks
-export async function getRandomTracks(limit = 50, genre = 'any') {
+export async function getRandomTracks(limit = 50, genre = 'any', year = 'any', type = 'any') {
   const token = await getAccessToken();
   
   if (!token) {
@@ -93,10 +93,11 @@ export async function getRandomTracks(limit = 50, genre = 'any') {
   }
 
   // If a specific genre is selected, try Spotify recommendations first
-  if (genre && genre !== 'any') {
+  const effectiveSeed = (type && type !== 'any') ? type : genre;
+  if (effectiveSeed && effectiveSeed !== 'any') {
     try {
       const recRes = await fetch(
-        `https://api.spotify.com/v1/recommendations?limit=${limit}&market=US&seed_genres=${encodeURIComponent(genre)}`,
+        `https://api.spotify.com/v1/recommendations?limit=${limit}&market=US&seed_genres=${encodeURIComponent(effectiveSeed)}`,
         {
           headers: { 'Authorization': `Bearer ${token}` }
         }
@@ -118,15 +119,28 @@ export async function getRandomTracks(limit = 50, genre = 'any') {
     }
   }
 
-  // Try multiple search strategies to get tracks with preview URLs (genre-agnostic)
+  // Build search strategies (honor year and type/genre when possible)
+  const qPartsBase = [];
+  if (year && year !== 'any') {
+    if (/^\d{4}$/.test(year)) {
+      qPartsBase.push(`year:${year}`)
+    } else if (/^\d{4}s$/.test(year)) {
+      // e.g., 2010s -> 2010-2019
+      const start = parseInt(year.slice(0,4), 10);
+      qPartsBase.push(`year:${start}-${start+9}`)
+    } else if (/^\d{4}-\d{4}$/.test(year)) {
+      qPartsBase.push(`year:${year}`)
+    }
+  }
+  const typeOrGenre = (effectiveSeed && effectiveSeed !== 'any') ? `genre:${effectiveSeed}` : '';
   const searchStrategies = [
-    { query: 'tag:new', name: 'new releases' },
-    { query: 'tag:hipster', name: 'hipster' },
-    { query: 'tag:2010s', name: '2010s' },
-    { query: 'genre:pop', name: 'pop' },
-    { query: 'genre:rock', name: 'rock' },
-    { query: 'genre:indie', name: 'indie' },
-    { query: 'year:2020-2024', name: 'recent' },
+    { query: [...qPartsBase, typeOrGenre || 'tag:new'].filter(Boolean).join(' '), name: 'targeted' },
+    { query: [...qPartsBase, 'tag:hipster'].filter(Boolean).join(' '), name: 'hipster' },
+    { query: [...qPartsBase, 'tag:2010s'].filter(Boolean).join(' '), name: '2010s' },
+    { query: [...qPartsBase, 'genre:pop'].filter(Boolean).join(' '), name: 'pop' },
+    { query: [...qPartsBase, 'genre:rock'].filter(Boolean).join(' '), name: 'rock' },
+    { query: [...qPartsBase, 'genre:indie'].filter(Boolean).join(' '), name: 'indie' },
+    { query: [...qPartsBase, 'year:2020-2024'].filter(Boolean).join(' '), name: 'recent' },
   ];
 
   // Try each strategy until we get tracks with previews
@@ -168,7 +182,11 @@ export async function getRandomTracks(limit = 50, genre = 'any') {
   // If all strategies failed, try iTunes fallback
   try {
     const { getITunesRandomTracks } = await import('./itunes');
-    const itunesTracks = await getITunesRandomTracks(limit, genre && genre !== 'any' ? genre : undefined);
+    const termForITunes = [
+      (effectiveSeed && effectiveSeed !== 'any') ? effectiveSeed : '',
+      (year && year !== 'any') ? year : ''
+    ].filter(Boolean).join(' ');
+    const itunesTracks = await getITunesRandomTracks(limit, termForITunes || undefined);
     if (itunesTracks.length > 0) {
       console.warn('Using iTunes fallback (Spotify previews unavailable)');
       return itunesTracks;

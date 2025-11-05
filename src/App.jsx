@@ -16,6 +16,8 @@ function App() {
   const [gameStarted, setGameStarted] = useState(false)
   const [loading, setLoading] = useState(false)
   const [selectedGenre, setSelectedGenre] = useState('any')
+  const [selectedYear, setSelectedYear] = useState('any')
+  const [selectedType, setSelectedType] = useState('any')
   const audioRef = useRef(null)
   const [timePlayed, setTimePlayed] = useState(0)
   const [autoStartIn, setAutoStartIn] = useState(null) // seconds until auto play
@@ -67,7 +69,7 @@ function App() {
   const loadTracks = async () => {
     setLoading(true)
     try {
-      const fetchedTracks = await getRandomTracks(50, selectedGenre)
+      const fetchedTracks = await getRandomTracks(50, selectedGenre, selectedYear, selectedType)
       // Filter tracks that have preview URLs
       const tracksWithPreview = fetchedTracks.filter(track => track.preview_url)
       console.log(`Loaded ${fetchedTracks.length} tracks, ${tracksWithPreview.length} with preview URLs`)
@@ -285,31 +287,55 @@ function App() {
         <div className="mode-selector">
           <h1>🎵 Music Guesser</h1>
           <p className="subtitle">Guess the song or the artist. Fast!</p>
-          <div className="genre-picker">
-            <label className="genre-label">Genre</label>
-            <select
-              className="genre-select"
-              value={selectedGenre}
-              onChange={(e) => setSelectedGenre(e.target.value)}
-            >
-              <option value="any">Any</option>
-              <option value="pop">Pop</option>
-              <option value="rock">Rock</option>
-              <option value="hip-hop">Hip Hop</option>
-              <option value="indie">Indie</option>
-              <option value="electronic">Electronic</option>
-              <option value="r-n-b">R&B</option>
-              <option value="dance">Dance</option>
-              <option value="latin">Latin</option>
-              <option value="country">Country</option>
-              <option value="jazz">Jazz</option>
-              <option value="k-pop">K-Pop</option>
-              <option value="metal">Metal</option>
-              <option value="soul">Soul</option>
-              <option value="funk">Funk</option>
-              <option value="blues">Blues</option>
-              <option value="reggae">Reggae</option>
-            </select>
+          <div className="picker-grid">
+            <div className="picker">
+              <label className="picker-label">Genre</label>
+              <div className="pill-grid">
+                {[
+                  ['any','Any'],
+                  ['pop','Pop'],['rock','Rock'],['hip-hop','Hip Hop'],['indie','Indie'],['electronic','Electronic'],
+                  ['r-n-b','R&B'],['dance','Dance'],['latin','Latin'],['country','Country'],['jazz','Jazz'],['metal','Metal'],
+                ].map(([val,label]) => (
+                  <button
+                    key={val}
+                    className={`pill ${selectedGenre===val?'pill-active':''}`}
+                    onClick={() => setSelectedGenre(val)}
+                  >{label}</button>
+                ))}
+              </div>
+            </div>
+
+            <div className="picker">
+              <label className="picker-label">Type</label>
+              <div className="pill-grid">
+                {[
+                  ['any','Any'],
+                  ['k-pop','K‑Pop'], ['j-pop','J‑Pop'], ['opm','Philippine Pop'],
+                ].map(([val,label]) => (
+                  <button
+                    key={val}
+                    className={`pill ${selectedType===val?'pill-active':''}`}
+                    onClick={() => setSelectedType(val)}
+                  >{label}</button>
+                ))}
+              </div>
+            </div>
+
+            <div className="picker">
+              <label className="picker-label">Year</label>
+              <div className="pill-grid">
+                {[
+                  ['any','Any'], ['2020s','2020s'], ['2010s','2010s'], ['2000s','2000s'], ['1990s','1990s'],
+                  ['2024','2024'], ['2023','2023'], ['2022','2022']
+                ].map(([val,label]) => (
+                  <button
+                    key={val}
+                    className={`pill ${selectedYear===val?'pill-active':''}`}
+                    onClick={() => setSelectedYear(val)}
+                  >{label}</button>
+                ))}
+              </div>
+            </div>
           </div>
           <div className="mode-buttons">
             <button
