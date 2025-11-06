@@ -156,6 +156,9 @@ function App() {
         setIsMultiplayer(true)
       }
       
+      // Ensure no timers from previous round are still running
+      clearTimers()
+
       setCurrentTrack(data.track)
       setOptions(data.options || [])
       setGameMode(data.gameMode)
@@ -349,6 +352,8 @@ function App() {
         answerIndex: idx,
         timeTaken: elapsedSec
       })
+      // Stop audio and clear timers to avoid late timeouts affecting next rounds
+      stopAudio()
     } else {
       if (correct) {
         // Points in hundreds, with milliseconds counting
