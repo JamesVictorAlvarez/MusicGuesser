@@ -42,12 +42,14 @@ function App() {
   const [playerName, setPlayerName] = useState('')
   const [roomCode, setRoomCode] = useState('')
   const [players, setPlayers] = useState([])
+  const [hostId, setHostId] = useState(null)
   const [gameOver, setGameOver] = useState(false)
   const [finalLeaderboard, setFinalLeaderboard] = useState([])
 
   const roomIdRef = useRef('')
   const isMultiplayerRef = useRef(false)
   const socketIdRef = useRef(null)
+  const hasLeftRoomRef = useRef(false)
 
   // Hooks
   const { socket, socketConnected, socketError, socketId } = useSocket()
@@ -68,23 +70,44 @@ function App() {
 
     socketInstance.on('room-created', (data) => {
       console.log('Room created:', data)
+      hasLeftRoomRef.current = false
       setRoomId(data.roomId)
       roomIdRef.current = data.roomId
       setRoomCode(data.roomId)
+      // When creating a room, the creator is the host
+      if (socketIdRef.current) {
+        setHostId(socketIdRef.current)
+      }
       setView('multiplayer-lobby')
     })
 
     socketInstance.on('room-joined', (data) => {
       console.log('Room joined:', data)
+      hasLeftRoomRef.current = false
       setRoomId(data.roomId)
       roomIdRef.current = data.roomId
+      // hostId will be set from the first room-updated event
       setView('multiplayer-lobby')
     })
 
     socketInstance.on('room-updated', (data) => {
       console.log('Room updated:', data)
+      
+      // Ignore if player has left the room
+      if (hasLeftRoomRef.current) {
+        console.log('Ignoring room-updated event - player has left the room')
+        return
+      }
+      
       if (data.players && Array.isArray(data.players)) {
         setPlayers(data.players)
+      }
+      // Always update hostId if it's provided - this is critical for showing/hiding leave button
+      if (data.hostId !== undefined && data.hostId !== null) {
+        setHostId(data.hostId)
+        console.log('Updated hostId from room-updated:', data.hostId, 'current socketId:', socketIdRef.current, 'isHost:', data.hostId === socketIdRef.current)
+      } else {
+        console.warn('room-updated event missing hostId!', data)
       }
       setCurrentRound(data.currentRound || 0)
       if (data.gameOver) {
@@ -103,6 +126,13 @@ function App() {
     socketInstance.on('load-round', async (data) => {
       console.log('=== LOAD-ROUND EVENT RECEIVED ===')
       console.log('Current tracks in state:', tracks.length, 'isHost:', data.isHost)
+      console.log('hasLeftRoomRef:', hasLeftRoomRef.current)
+      
+      // Ignore if player has left the room - CHECK THIS FIRST
+      if (hasLeftRoomRef.current) {
+        console.log('IGNORING load-round event - player has left the room')
+        return
+      }
       
       if (view !== 'multiplayer-game') {
         setView('multiplayer-game')
@@ -147,8 +177,24 @@ function App() {
     socketInstance.on('round-started', (data) => {
       console.log('=== ROUND-STARTED EVENT RECEIVED ===')
       console.log('Track received:', data.track?.name)
+      console.log('hasLeftRoomRef:', hasLeftRoomRef.current)
       
-      if (!data.track) return
+      // Ignore if player has left the room - CHECK THIS FIRST
+      if (hasLeftRoomRef.current) {
+        console.log('IGNORING round-started event - player has left the room')
+        return
+      }
+      
+      if (!data.track) {
+        console.log('No track data, ignoring')
+        return
+      }
+      
+      // Double check we haven't left
+      if (hasLeftRoomRef.current) {
+        console.log('IGNORING round-started event - player left during processing')
+        return
+      }
       
       if (view !== 'multiplayer-game') {
         setView('multiplayer-game')
@@ -173,25 +219,95 @@ function App() {
         setTracks(prev => prev.filter(t => t.id !== data.track.id))
       }
       
-      startAutoPlayCountdown(5, setAutoStartIn, () => {
-        startAudioPlayback(() => {
-          if (!showAnswer) {
-            setIsCorrect(false)
-            setShowAnswer(true)
-            stopAudio()
-            setTimeout(() => {
-              setCurrentTrack(null)
-            }, 3000)
+      // Only start countdown if we haven't left
+      if (!hasLeftRoomRef.current) {
+        startAutoPlayCountdown(5, setAutoStartIn, () => {
+          // Check again before starting audio
+          if (hasLeftRoomRef.current) {
+            console.log('Player left during countdown, stopping')
+            return
           }
+          startAudioPlayback(() => {
+            if (!showAnswer && !hasLeftRoomRef.current) {
+              setIsCorrect(false)
+              setShowAnswer(true)
+              stopAudio()
+              setTimeout(() => {
+                if (!hasLeftRoomRef.current) {
+                  setCurrentTrack(null)
+                }
+              }, 3000)
+            }
+          })
         })
-      })
+      }
     })
 
     socketInstance.on('game-over', (data) => {
       console.log('Game over:', data)
+      
+      // Ignore if player has left the room
+      if (hasLeftRoomRef.current) {
+        console.log('Ignoring game-over event - player has left the room')
+        return
+      }
+      
       setFinalLeaderboard(data.players)
       setGameOver(true)
       setView('multiplayer-results')
+    })
+
+    socketInstance.on('room-closed', (data) => {
+      console.log('=== ROOM-CLOSED EVENT RECEIVED ===', data)
+      
+      // Mark that we've left FIRST
+      hasLeftRoomRef.current = true
+      
+      // Stop all game activity immediately
+      stopAudio()
+      clearTimers()
+      setGameStarted(false)
+      setCurrentTrack(null)
+      setShowAnswer(false)
+      setAudioStarted(false)
+      setAutoStartIn(null)
+      
+      // Remove all event listeners
+      if (socketInstance) {
+        console.log('Removing all socket event listeners after room closed')
+        socketInstance.off('room-created')
+        socketInstance.off('room-joined')
+        socketInstance.off('room-updated')
+        socketInstance.off('game-started')
+        socketInstance.off('load-round')
+        socketInstance.off('round-started')
+        socketInstance.off('game-over')
+        socketInstance.off('room-closed')
+        socketInstance.off('room-error')
+      }
+      
+      alert(data.message || 'The room was closed')
+      
+      // Note: Socket will disconnect automatically when browser closes
+      // No need to manually disconnect here
+      
+      // Clean up state and return to menu
+      setGameMode(null)
+      setTracks([])
+      setIsCorrect(null)
+      setScore(0)
+      setTimePlayed(0)
+      setSelectedIdx(null)
+      setOptions([])
+      setView('menu')
+      setIsMultiplayer(false)
+      setRoomId('')
+      setRoomCode('')
+      setPlayers([])
+      setHostId(null)
+      setCurrentRound(0)
+      setGameOver(false)
+      setFinalLeaderboard([])
     })
 
     socketInstance.on('room-error', (data) => {
@@ -208,6 +324,7 @@ function App() {
         socketInstance.off('load-round')
         socketInstance.off('round-started')
         socketInstance.off('game-over')
+        socketInstance.off('room-closed')
         socketInstance.off('room-error')
       }
     }
@@ -394,12 +511,19 @@ function App() {
   }
 
   const handleLeave = () => {
-    setGameMode(null)
+    // Stop all game activity first
+    stopAudio()
+    clearTimers()
+    setGameStarted(false)
     setCurrentTrack(null)
+    setShowAnswer(false)
+    setAudioStarted(false)
+    setAutoStartIn(null)
+    
+    // Clean up all state
+    setGameMode(null)
     setTracks([])
     setIsCorrect(null)
-    setShowAnswer(false)
-    setGameStarted(false)
     setScore(0)
     setTimePlayed(0)
     setSelectedIdx(null)
@@ -409,11 +533,10 @@ function App() {
     setRoomId('')
     setRoomCode('')
     setPlayers([])
+    setHostId(null)
     setCurrentRound(0)
     setGameOver(false)
     setFinalLeaderboard([])
-    clearTimers()
-    stopAudio()
   }
 
   const handlePlayerReady = () => {
@@ -424,13 +547,6 @@ function App() {
     }
   }
 
-  const handleMultiplayerLeave = () => {
-    const socketInstance = getSocket()
-    if (socketInstance) {
-      socketInstance.disconnect()
-    }
-    handleLeave()
-  }
 
   // View routing
   if (view === 'menu') {
@@ -480,8 +596,8 @@ function App() {
       <MultiplayerLobby
         roomCode={roomCode}
         players={players}
-        socketId={socketIdRef.current}
-        onLeave={handleMultiplayerLeave}
+        socketId={socketIdRef.current || socketId}
+        hostId={hostId}
         onReady={handlePlayerReady}
       />
     )

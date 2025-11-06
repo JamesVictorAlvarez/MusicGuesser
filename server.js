@@ -52,7 +52,13 @@ io.on('connection', (socket) => {
     
     socket.join(roomId)
     socket.emit('room-created', { roomId })
-    io.to(roomId).emit('room-updated', getRoomState(roomId))
+    // Only send to active players (just the creator at this point)
+    const room = rooms.get(roomId)
+    if (room) {
+      room.players.forEach((player, playerId) => {
+        io.to(playerId).emit('room-updated', getRoomState(roomId))
+      })
+    }
     console.log(`Room ${roomId} created with state:`, getRoomState(roomId))
   })
 
@@ -77,7 +83,10 @@ io.on('connection', (socket) => {
     room.players.set(socket.id, { id: socket.id, name: playerName, score: 0, currentRoundScore: 0, isReady: false })
     socket.join(roomId)
     socket.emit('room-joined', { roomId })
-    io.to(roomId).emit('room-updated', getRoomState(roomId))
+    // Only send to active players
+    room.players.forEach((player, playerId) => {
+      io.to(playerId).emit('room-updated', getRoomState(roomId))
+    })
     console.log(`Player ${playerName} joined room ${roomId}. Players:`, Array.from(room.players.values()).map(p => p.name))
   })
 
@@ -94,7 +103,10 @@ io.on('connection', (socket) => {
     if (player) {
       player.isReady = true
       console.log(`Player ${player.name} is now ready`)
-      io.to(roomId).emit('room-updated', getRoomState(roomId))
+      // Only send to active players
+      room.players.forEach((player, playerId) => {
+        io.to(playerId).emit('room-updated', getRoomState(roomId))
+      })
       
       const allReady = Array.from(room.players.values()).every(p => p.isReady)
       console.log(`All players ready: ${allReady}, Current round: ${room.currentRound}`)
@@ -115,7 +127,10 @@ io.on('connection', (socket) => {
     if (!room || !room.roundStarted) return
     
     const player = room.players.get(socket.id)
-    if (!player) return
+    if (!player) {
+      console.log(`Player ${socket.id} not in room ${roomId}, ignoring answer`)
+      return
+    }
     
     const selectedOption = room.options[answerIndex]
     const isCorrect = selectedOption?.isCorrect || false
@@ -137,13 +152,15 @@ io.on('connection', (socket) => {
       player.currentRoundScore = 0
     }
     
-    // Update all players with new scores
-    io.to(roomId).emit('room-updated', getRoomState(roomId))
+    // Update all players with new scores (only send to active players)
+    room.players.forEach((player, playerId) => {
+      io.to(playerId).emit('room-updated', getRoomState(roomId))
+    })
     
     console.log(`Player ${player.name} answered. Answers: ${room.answers.size}/${room.players.size}`)
     
-    // Check if all players answered
-    if (room.answers.size === room.players.size) {
+    // Check if all remaining players answered
+    if (room.answers.size === room.players.size && room.players.size > 0) {
       console.log(`All players answered, moving to next round in 2 seconds...`)
       setTimeout(() => {
         nextRound(roomId)
@@ -202,17 +219,10 @@ io.on('connection', (socket) => {
       console.log(`  - Socket ${s.id} in room ${roomId}`)
     })
     
-    // Broadcast to ALL players in the room - use both methods to ensure delivery
-    console.log(`Emitting round-started to room ${roomId}...`)
-    io.to(roomId).emit('round-started', {
-      track,
-      options,
-      gameMode
-    })
-    
-    // Also try emitting to each player individually as a fallback
+    // Only send to players who are still in the room
+    console.log(`Emitting round-started to ${room.players.size} active players in room ${roomId}...`)
     room.players.forEach((player, playerId) => {
-      console.log(`Also sending round-started directly to player ${playerId} (${player.name})`)
+      console.log(`Sending round-started to player ${playerId} (${player.name})`)
       io.to(playerId).emit('round-started', {
         track,
         options,
@@ -227,8 +237,9 @@ io.on('connection', (socket) => {
       const currentRoom = rooms.get(roomId)
       if (!currentRoom || !currentRoom.roundStarted) return
       
-      // Check if any players haven't answered
-      const unanswered = Array.from(currentRoom.players.keys()).filter(
+      // Check if any remaining players haven't answered (only check players still in room)
+      const remainingPlayers = Array.from(currentRoom.players.keys())
+      const unanswered = remainingPlayers.filter(
         playerId => !currentRoom.answers.has(playerId)
       )
       
@@ -247,7 +258,12 @@ io.on('connection', (socket) => {
           }
         })
         
-        io.to(roomId).emit('room-updated', getRoomState(roomId))
+        // Only send to active players
+        if (currentRoom) {
+          currentRoom.players.forEach((player, playerId) => {
+            io.to(playerId).emit('room-updated', getRoomState(roomId))
+          })
+        }
         
         // Move to next round
         setTimeout(() => {
@@ -263,11 +279,30 @@ io.on('connection', (socket) => {
     // Remove player from all rooms
     for (const [roomId, room] of rooms.entries()) {
       if (room.players.has(socket.id)) {
+        const isHost = room.hostId === socket.id
+        
         room.players.delete(socket.id)
-        if (room.players.size === 0) {
+        
+        if (isHost) {
+          // Host disconnected - close room and kick all other players
+          console.log(`Host disconnected from room ${roomId}, closing room and kicking ${room.players.size} other players`)
+          
+          const otherPlayerIds = Array.from(room.players.keys())
+          otherPlayerIds.forEach(playerId => {
+            io.to(playerId).emit('room-closed', { message: 'Host disconnected' })
+          })
+          
           rooms.delete(roomId)
         } else {
-          io.to(roomId).emit('room-updated', getRoomState(roomId))
+          // Regular player disconnected
+          if (room.players.size === 0) {
+            rooms.delete(roomId)
+          } else {
+            // Only send to active players
+            room.players.forEach((player, playerId) => {
+              io.to(playerId).emit('room-updated', getRoomState(roomId))
+            })
+          }
         }
         break
       }
@@ -281,6 +316,7 @@ function getRoomState(roomId) {
   
   return {
     roomId: room.id,
+    hostId: room.hostId,
     players: Array.from(room.players.values()),
     currentRound: room.currentRound,
     currentTrack: room.currentTrack,
@@ -300,7 +336,10 @@ async function startGame(roomId) {
   if (!room) return
   
   room.currentRound = 1
-  io.to(roomId).emit('game-started')
+  // Only send to active players
+  room.players.forEach((player, playerId) => {
+    io.to(playerId).emit('game-started')
+  })
   await loadRound(roomId)
 }
 
@@ -311,7 +350,25 @@ async function loadRound(roomId) {
     return
   }
   
-  console.log(`loadRound: Loading round ${room.currentRound} for room ${roomId}`)
+  // Check if there are still players in the room
+  if (room.players.size === 0) {
+    console.log(`loadRound: No players in room ${roomId}, deleting room`)
+    rooms.delete(roomId)
+    return
+  }
+  
+  // Check if host is still in the room
+  if (!room.players.has(room.hostId)) {
+    console.log(`loadRound: Host left room ${roomId}, closing room`)
+    const otherPlayerIds = Array.from(room.players.keys())
+    otherPlayerIds.forEach(playerId => {
+      io.to(playerId).emit('room-closed', { message: 'Host left the room' })
+    })
+    rooms.delete(roomId)
+    return
+  }
+  
+  console.log(`loadRound: Loading round ${room.currentRound} for room ${roomId} with ${room.players.size} players`)
   
   // Clear any existing timeout
   if (room.roundTimeout) {
@@ -325,17 +382,22 @@ async function loadRound(roomId) {
   room.currentTrack = null
   room.options = []
   
+  // Only send load-round to players who are still in the room
   // Only the host should load tracks and send track data
   // Other players will wait for round-started event
-  console.log(`loadRound: Emitting to host ${room.hostId}`)
-  io.to(room.hostId).emit('load-round', { round: room.currentRound, isHost: true })
+  if (room.players.has(room.hostId)) {
+    console.log(`loadRound: Emitting to host ${room.hostId}`)
+    io.to(room.hostId).emit('load-round', { round: room.currentRound, isHost: true })
+  }
   
   // Tell other players to wait (they'll receive round-started when host sends track data)
   const otherPlayers = Array.from(room.players.keys()).filter(id => id !== room.hostId)
   console.log(`loadRound: ${otherPlayers.length} other players waiting for round-started`)
   if (otherPlayers.length > 0) {
     otherPlayers.forEach(playerId => {
-      io.to(playerId).emit('load-round', { round: room.currentRound, isHost: false })
+      if (room.players.has(playerId)) {
+        io.to(playerId).emit('load-round', { round: room.currentRound, isHost: false })
+      }
     })
   }
 }
@@ -348,8 +410,11 @@ async function nextRound(roomId) {
   
   if (room.currentRound > 10) {
     // Game over
-    io.to(roomId).emit('game-over', {
-      players: Array.from(room.players.values()).sort((a, b) => b.score - a.score)
+    // Only send to active players
+    room.players.forEach((player, playerId) => {
+      io.to(playerId).emit('game-over', {
+        players: Array.from(room.players.values()).sort((a, b) => b.score - a.score)
+      })
     })
   } else {
     await loadRound(roomId)
