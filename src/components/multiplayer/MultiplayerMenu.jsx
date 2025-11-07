@@ -85,7 +85,7 @@ export default function MultiplayerMenu({ socketConnected, socketError, onBack }
         )}
         <div className="multiplayer-menu">
           {!showCreateOptions ? (
-            <>
+            <div className="mp-options-container">
               <div className="mp-option">
                 <h3>Create Room</h3>
                 <input
@@ -103,7 +103,32 @@ export default function MultiplayerMenu({ socketConnected, socketError, onBack }
                   Create Room
                 </button>
               </div>
-            </>
+              <div className="mp-option">
+                <h3>Join Room</h3>
+                <input
+                  type="text"
+                  placeholder="Your name"
+                  value={playerName}
+                  onChange={(e) => setPlayerName(e.target.value)}
+                  className="name-input"
+                />
+                <input
+                  type="text"
+                  placeholder="Room code"
+                  value={roomCode}
+                  onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
+                  className="room-input"
+                  maxLength={7}
+                />
+                <button
+                  className="menu-btn menu-btn-primary"
+                  disabled={!socketConnected}
+                  onClick={handleJoinRoom}
+                >
+                  Join Room
+                </button>
+              </div>
+            </div>
           ) : (
             <div className="menu-content">
               <div className="menu-actions">
@@ -180,39 +205,12 @@ export default function MultiplayerMenu({ socketConnected, socketError, onBack }
             </div>
           )}
           {!showCreateOptions && (
-            <>
-              <div className="mp-option">
-                <h3>Join Room</h3>
-                <input
-                  type="text"
-                  placeholder="Your name"
-                  value={playerName}
-                  onChange={(e) => setPlayerName(e.target.value)}
-                  className="name-input"
-                />
-                <input
-                  type="text"
-                  placeholder="Room code"
-                  value={roomCode}
-                  onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
-                  className="room-input"
-                  maxLength={7}
-                />
-                <button
-                  className="menu-btn menu-btn-primary"
-                  disabled={!socketConnected}
-                  onClick={handleJoinRoom}
-                >
-                  Join Room
-                </button>
-              </div>
-              <button
-                className="menu-btn"
-                onClick={onBack}
-              >
-                Back
-              </button>
-            </>
+            <button
+              className="menu-btn"
+              onClick={onBack}
+            >
+              Back
+            </button>
           )}
         </div>
       </div>
