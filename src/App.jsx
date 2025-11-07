@@ -35,6 +35,7 @@ function App() {
 
   // Round tracking (for both single and multiplayer)
   const [currentRound, setCurrentRound] = useState(0)
+  const [totalRounds, setTotalRounds] = useState(10)
   
   // Multiplayer state
   const [isMultiplayer, setIsMultiplayer] = useState(false)
@@ -110,6 +111,16 @@ function App() {
         console.warn('room-updated event missing hostId!', data)
       }
       setCurrentRound(data.currentRound || 0)
+      // Update genre, type, and rounds from room state
+      if (data.genre !== undefined) {
+        setSelectedGenre(data.genre)
+      }
+      if (data.type !== undefined) {
+        setSelectedType(data.type)
+      }
+      if (data.totalRounds !== undefined) {
+        setTotalRounds(data.totalRounds)
+      }
       if (data.gameOver) {
         setGameOver(true)
       }
@@ -221,7 +232,7 @@ function App() {
       
       // Only start countdown if we haven't left
       if (!hasLeftRoomRef.current) {
-        startAutoPlayCountdown(5, setAutoStartIn, () => {
+        startAutoPlayCountdown(3, setAutoStartIn, () => {
           // Check again before starting audio
           if (hasLeftRoomRef.current) {
             console.log('Player left during countdown, stopping')
@@ -432,7 +443,7 @@ function App() {
     } else if (!currentIsMultiplayer) {
       setCurrentTrack(track)
       setOptions(shuffledOptions)
-      startAutoPlayCountdown(5, setAutoStartIn, () => {
+      startAutoPlayCountdown(3, setAutoStartIn, () => {
         startAudioPlayback(() => {
           if (!showAnswer) {
             setIsCorrect(false)
@@ -492,7 +503,7 @@ function App() {
       const nextRound = currentRound + 1
       setCurrentRound(nextRound)
       
-      if (nextRound >= 10) {
+      if (nextRound > totalRounds) {
         // Game over for single player
         setGameOver(true)
         setGameStarted(false)
@@ -558,9 +569,10 @@ function App() {
           setSelectedGenre(genre)
           setSelectedType(type)
         }}
-        onPlaySolo={({ genre, type }) => {
+        onPlaySolo={({ genre, type, rounds }) => {
           setSelectedGenre(genre)
           setSelectedType(type)
+          setTotalRounds(rounds || 10)
           setIsMultiplayer(false)
           setCurrentRound(1)
           setGameOver(false)
@@ -599,6 +611,9 @@ function App() {
         socketId={socketIdRef.current || socketId}
         hostId={hostId}
         onReady={handlePlayerReady}
+        genre={selectedGenre}
+        type={selectedType}
+        totalRounds={totalRounds}
       />
     )
   }
@@ -693,6 +708,7 @@ function App() {
         audioRef={audioRef}
         isMultiplayer={isMultiplayer}
         currentRound={currentRound}
+        totalRounds={totalRounds}
         players={players}
         audioStarted={audioStarted}
         onChoice={handleChoice}

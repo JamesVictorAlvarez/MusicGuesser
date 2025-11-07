@@ -1,11 +1,35 @@
 import { useState } from 'react'
 import { getSocket } from '../../utils/socket'
 
-export default function MultiplayerLobby({ roomCode, players, socketId, hostId, onReady }) {
+export default function MultiplayerLobby({ roomCode, players, socketId, hostId, onReady, genre, type, totalRounds }) {
   const socket = getSocket()
   const allReady = players.length > 0 && players.every(p => p.isReady)
   const currentPlayer = players.find(p => p.id === socketId)
   const [copied, setCopied] = useState(false)
+  
+  const getGenreLabel = () => {
+    const genreMap = {
+      'any': 'Any',
+      'pop': 'Pop',
+      'rock': 'Rock',
+      'hip-hop': 'Hip Hop',
+      'indie': 'Indie',
+      'electronic': 'Electronic',
+      'r-n-b': 'R&B',
+      'dance': 'Dance',
+      'latin': 'Latin',
+      'country': 'Country',
+      'jazz': 'Jazz',
+      'metal': 'Metal',
+      'k-pop': 'K‑Pop',
+      'j-pop': 'J‑Pop',
+      'opm': 'Philippine Pop'
+    }
+    if (type && type !== 'any') {
+      return genreMap[type] || type
+    }
+    return genreMap[genre] || genre || 'Any'
+  }
   
   const handleCopyRoomCode = async () => {
     try {
@@ -86,6 +110,28 @@ export default function MultiplayerLobby({ roomCode, players, socketId, hostId, 
           </h1>
         </div>
         <div className="lobby-content">
+          {(genre || totalRounds) && (
+            <div style={{ 
+              marginBottom: '20px', 
+              padding: '15px', 
+              background: 'var(--visual)', 
+              borderRadius: '8px',
+              border: '1px solid var(--line)'
+            }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {genre && (
+                  <div style={{ fontSize: '1rem', color: 'var(--fg)' }}>
+                    <strong>Genre:</strong> {getGenreLabel()}
+                  </div>
+                )}
+                {totalRounds && (
+                  <div style={{ fontSize: '1rem', color: 'var(--fg)' }}>
+                    <strong>Rounds:</strong> {totalRounds}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
           <h2>Players ({players.length})</h2>
           {players.length === 0 ? (
             <p style={{ color: 'var(--comment)' }}>Waiting for players to join...</p>

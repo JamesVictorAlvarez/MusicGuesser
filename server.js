@@ -19,8 +19,12 @@ const rooms = new Map()
 // Room structure:
 // {
 //   id: string,
+//   hostId: string,
 //   players: Map(socketId -> { id, name, score, currentRoundScore, isReady }),
 //   currentRound: number,
+//   totalRounds: number,
+//   genre: string,
+//   type: string,
 //   currentTrack: object,
 //   options: array,
 //   gameMode: 'song' | 'artist',
@@ -33,15 +37,18 @@ io.on('connection', (socket) => {
 
   socket.on('create-room', (data) => {
     const roomId = Math.random().toString(36).substring(2, 9).toUpperCase()
-    const { playerName } = data
+    const { playerName, genre = 'any', type = 'any', rounds = 10 } = data
     
-    console.log(`Creating room ${roomId} for player ${playerName} (${socket.id})`)
+    console.log(`Creating room ${roomId} for player ${playerName} (${socket.id}) with genre: ${genre}, type: ${type}, rounds: ${rounds}`)
     
     rooms.set(roomId, {
       id: roomId,
       hostId: socket.id, // First player to create room is the host
       players: new Map([[socket.id, { id: socket.id, name: playerName, score: 0, currentRoundScore: 0, isReady: false }]]),
       currentRound: 0,
+      totalRounds: rounds,
+      genre: genre,
+      type: type,
       currentTrack: null,
       options: [],
       gameMode: null,
@@ -319,6 +326,9 @@ function getRoomState(roomId) {
     hostId: room.hostId,
     players: Array.from(room.players.values()),
     currentRound: room.currentRound,
+    totalRounds: room.totalRounds || 10,
+    genre: room.genre || 'any',
+    type: room.type || 'any',
     currentTrack: room.currentTrack,
     options: room.options,
     gameMode: room.gameMode,
@@ -327,7 +337,7 @@ function getRoomState(roomId) {
       playerId: id,
       ...answer
     })),
-    gameOver: room.currentRound >= 10
+    gameOver: room.currentRound >= (room.totalRounds || 10)
   }
 }
 
@@ -407,8 +417,9 @@ async function nextRound(roomId) {
   if (!room) return
   
   room.currentRound++
+  const totalRounds = room.totalRounds || 10
   
-  if (room.currentRound > 10) {
+  if (room.currentRound > totalRounds) {
     // Game over
     // Only send to active players
     room.players.forEach((player, playerId) => {

@@ -11,7 +11,7 @@
 /* Mode Selector */
 .mode-selector {
   width: 100%;
-  max-width: 1400px;
+  max-width: 100%;
   padding: 40px 20px;
   text-align: center;
 }
@@ -35,7 +35,6 @@
   align-items: stretch;
   justify-content: center;
   width: 100%;
-  max-width: 1400px;
   min-height: 60vh;
   position: relative;
 }
@@ -61,6 +60,10 @@
   width: 1px;
   height: 100%;
   background: var(--line);
+}
+
+.menu-actions-no-divider::after {
+  display: none;
 }
 
 .genre-grid-wrapper {
@@ -95,6 +98,7 @@
   grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
   gap: 16px;
   width: 100%;
+  max-width: 100%;
 }
 
 .genre-card {
@@ -145,6 +149,65 @@
   color: var(--fg);
   font-weight: 500;
   font-family: 'Barlow Condensed', sans-serif;
+}
+
+.rounds-selection {
+  margin-bottom: 40px;
+}
+
+.rounds-selection h2 {
+  font-size: 1.5rem;
+  color: var(--builtin);
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.rounds-buttons {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.rounds-btn {
+  padding: 16px 32px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  font-family: 'Barlow Condensed', sans-serif;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  border: 2px solid var(--floatBorder);
+  border-radius: 8px;
+  background: var(--inactiveBg);
+  color: var(--fg);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  min-width: 120px;
+}
+
+.rounds-btn:hover {
+  border-color: var(--hint);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  background: var(--visual);
+}
+
+.rounds-btn-active {
+  border-color: var(--hint);
+  background: var(--hint);
+  color: var(--bg);
+  box-shadow: 0 4px 16px rgba(126, 152, 232, 0.4);
+}
+
+.genre-selection {
+  margin-top: 40px;
+}
+
+.genre-selection h2 {
+  font-size: 1.5rem;
+  color: var(--builtin);
+  margin-bottom: 20px;
+  text-align: center;
 }
 
 

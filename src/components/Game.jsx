@@ -13,6 +13,7 @@ export default function Game({
   audioRef,
   isMultiplayer,
   currentRound,
+  totalRounds = 10,
   players,
   audioStarted,
   onChoice,
@@ -53,7 +54,7 @@ export default function Game({
           <div className="score">
             {isMultiplayer ? (
               <>
-                <span>Round {currentRound}/10</span>
+                <span>Round {currentRound}/{totalRounds}</span>
                 <div className="players-mini">
                   {players.map(p => (
                     <span key={p.id} className="player-score-mini">
@@ -64,7 +65,7 @@ export default function Game({
               </>
             ) : (
               <>
-                <span>Round {currentRound}/10</span>
+                <span>Round {currentRound}/{totalRounds}</span>
                 <span>Score: {score}</span>
                 <button onClick={onLeave} className="reset-btn-small">Leave</button>
               </>
