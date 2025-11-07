@@ -66,78 +66,96 @@ export default function Game({
             ) : (
               <>
                 <span>Round {currentRound}/{totalRounds}</span>
-                <span>Score: {score}</span>
                 <button onClick={onLeave} className="reset-btn-small">Leave</button>
               </>
             )}
           </div>
         </div>
 
-        <div className="game-mode">
-          {gameMode === 'song' ? '🎧 Guess the Song' : '🎤 Guess the Artist'}
-        </div>
-
-        <div className="audio-section">
-          {autoStartIn !== null && autoStartIn > 0 ? (
-            <div className="loading-circle-container">
-              <div className="loading-circle">
-                <div className="loading-circle-inner"></div>
+        <div className="game-content-wrapper">
+          <div className="game-sidebar">
+            {isMultiplayer ? (
+              <div className="players-mini">
+                {players.map(p => (
+                  <div key={p.id} className="player-score-item">
+                    <span className="player-name-mini">{p.name}</span>
+                    <span className="player-score-mini">{p.score}</span>
+                  </div>
+                ))}
               </div>
-            </div>
-          ) : !showAnswer ? null : (
-            <div className="album-art">
-              {currentTrack.album?.images?.[0]?.url ? (
-                <img 
-                  src={currentTrack.album.images[0].url} 
-                  alt="Album cover"
-                />
-              ) : (
-                <div className="placeholder-art">🎵</div>
-              )}
-            </div>
-          )}
-          
-          <div className="audio-controls">
-            {currentTrack.preview_url ? (
-              <>
-                <audio
-                  ref={audioRef}
-                  src={currentTrack.preview_url}
-                  onEnded={() => onTimeUpdate?.(10)}
-                />
-                <div className="progress-bar">
-                  <div 
-                    className="progress-fill" 
-                    style={{ width: `${(timePlayed / 10) * 100}%` }}
-                  />
-                </div>
-                <p className="time-info">{Math.min(timePlayed.toFixed(1), 10)}s / 10s</p>
-              </>
             ) : (
-              <p className="no-preview">No preview available for this track</p>
+              <div className="score-value">{score}</div>
             )}
           </div>
-        </div>
 
-        <div className="choices">
-          {options.map((opt, idx) => {
-            const isSelected = selectedIdx === idx
-            const stateClass = showAnswer
-              ? opt.isCorrect
-                ? 'choice-correct'
-                : isSelected ? 'choice-incorrect' : ''
-              : ''
-            return (
-              <button
-                key={idx}
-                className={`choice-btn ${stateClass}`}
-                onClick={() => onChoice(idx)}
-                disabled={showAnswer || !audioStarted}
-              >
-                <span className="choice-label">{opt.label}</span>
-              </button>
-            )
-          })}
+          <div className="game-main">
+            <div className="game-mode">
+              {gameMode === 'song' ? '🎧 Guess the Song' : '🎤 Guess the Artist'}
+            </div>
+
+            <div className="audio-section">
+              {autoStartIn !== null && autoStartIn > 0 ? (
+                <div className="loading-circle-container">
+                  <div className="loading-circle">
+                    <div className="loading-circle-inner"></div>
+                  </div>
+                </div>
+              ) : !showAnswer ? null : (
+                <div className="album-art">
+                  {currentTrack.album?.images?.[0]?.url ? (
+                    <img 
+                      src={currentTrack.album.images[0].url} 
+                      alt="Album cover"
+                    />
+                  ) : (
+                    <div className="placeholder-art">🎵</div>
+                  )}
+                </div>
+              )}
+              
+              <div className="audio-controls">
+                {currentTrack.preview_url ? (
+                  <>
+                    <audio
+                      ref={audioRef}
+                      src={currentTrack.preview_url}
+                      onEnded={() => onTimeUpdate?.(10)}
+                    />
+                    <div className="progress-bar">
+                      <div 
+                        className="progress-fill" 
+                        style={{ width: `${(timePlayed / 10) * 100}%` }}
+                      />
+                    </div>
+                    <p className="time-info">{Math.min(timePlayed.toFixed(1), 10)}s / 10s</p>
+                  </>
+                ) : (
+                  <p className="no-preview">No preview available for this track</p>
+                )}
+              </div>
+            </div>
+
+            <div className="choices">
+              {options.map((opt, idx) => {
+                const isSelected = selectedIdx === idx
+                const stateClass = showAnswer
+                  ? opt.isCorrect
+                    ? 'choice-correct'
+                    : isSelected ? 'choice-incorrect' : ''
+                  : ''
+                return (
+                  <button
+                    key={idx}
+                    className={`choice-btn ${stateClass}`}
+                    onClick={() => onChoice(idx)}
+                    disabled={showAnswer || !audioStarted}
+                  >
+                    <span className="choice-label">{opt.label}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
         </div>
       </div>
     </div>

@@ -289,7 +289,6 @@
   position: relative;
 }
 
-
 .header {
   display: flex;
   justify-content: space-between;
@@ -312,6 +311,38 @@
   font-size: 1.1rem;
   font-weight: 600;
   color: var(--operator);
+}
+
+.game-content-wrapper {
+  display: flex;
+  flex-direction: row;
+  gap: 40px;
+  width: 100%;
+  align-items: flex-start;
+}
+
+.game-sidebar {
+  flex: 0 0 auto;
+  position: sticky;
+  top: 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.game-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+.score-value {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: var(--operator);
+  line-height: 1;
 }
 
 .reset-btn-small {

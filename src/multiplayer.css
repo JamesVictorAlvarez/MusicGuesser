@@ -115,8 +115,35 @@
   font-size: 0.9rem;
 }
 
+.header .players-mini {
+  flex-direction: row;
+  gap: 15px;
+}
+
+.player-score-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+  min-width: 150px;
+}
+
+.player-name-mini {
+  font-size: 0.95rem;
+  color: var(--fg);
+  font-weight: 500;
+}
+
 .player-score-mini {
+  font-size: 1.5rem;
+  font-weight: 700;
   color: var(--operator);
+  line-height: 1;
+}
+
+.header .player-score-mini {
+  font-size: 0.9rem;
+  font-weight: 600;
 }
 
 .leaderboard {
