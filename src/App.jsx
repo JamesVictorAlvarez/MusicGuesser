@@ -51,6 +51,7 @@ function App() {
   const isMultiplayerRef = useRef(false)
   const socketIdRef = useRef(null)
   const hasLeftRoomRef = useRef(false)
+  const currentTrackIdRef = useRef(null)
 
   // Hooks
   const { socket, socketConnected, socketError, socketId } = useSocket()
@@ -226,12 +227,16 @@ function App() {
       setAudioStarted(false)
       setLoading(false)
       
+      // Update track ID ref for timeout validation
+      currentTrackIdRef.current = data.track?.id || null
+      
       if (data.track && data.track.id) {
         setTracks(prev => prev.filter(t => t.id !== data.track.id))
       }
       
       // Only start countdown if we haven't left
       if (!hasLeftRoomRef.current) {
+        const trackId = data.track?.id
         startAutoPlayCountdown(3, setAutoStartIn, () => {
           // Check again before starting audio
           if (hasLeftRoomRef.current) {
@@ -239,13 +244,15 @@ function App() {
             return
           }
           startAudioPlayback(() => {
-            if (!showAnswer && !hasLeftRoomRef.current) {
+            // Check if this timeout is still valid for the current track
+            if (currentTrackIdRef.current === trackId && !hasLeftRoomRef.current) {
               setIsCorrect(false)
               setShowAnswer(true)
               stopAudio()
               setTimeout(() => {
-                if (!hasLeftRoomRef.current) {
+                if (!hasLeftRoomRef.current && currentTrackIdRef.current === trackId) {
                   setCurrentTrack(null)
+                  currentTrackIdRef.current = null
                 }
               }, 3000)
             }
@@ -441,16 +448,23 @@ function App() {
       })
       console.log('=== ROUND DATA SENT ===')
     } else if (!currentIsMultiplayer) {
+      // Update track ID ref for timeout validation
+      currentTrackIdRef.current = track.id
       setCurrentTrack(track)
       setOptions(shuffledOptions)
+      const trackId = track.id
       startAutoPlayCountdown(3, setAutoStartIn, () => {
         startAudioPlayback(() => {
-          if (!showAnswer) {
+          // Check if this timeout is still valid for the current track
+          if (currentTrackIdRef.current === trackId) {
             setIsCorrect(false)
             setShowAnswer(true)
             stopAudio()
             setTimeout(() => {
-              setCurrentTrack(null)
+              if (currentTrackIdRef.current === trackId) {
+                setCurrentTrack(null)
+                currentTrackIdRef.current = null
+              }
             }, 3000)
           }
         })
@@ -466,6 +480,9 @@ function App() {
     const correct = !!chosen?.isCorrect
     setIsCorrect(correct)
     setShowAnswer(true)
+    
+    // Clear track ID ref to prevent timeout from firing
+    currentTrackIdRef.current = null
     
     const elapsedSec = typeof timePlayed === 'number' && timePlayed > 0
       ? timePlayed
@@ -508,9 +525,13 @@ function App() {
         setGameOver(true)
         setGameStarted(false)
         setCurrentTrack(null)
+        currentTrackIdRef.current = null
         return
       }
     }
+    
+    // Clear track ID ref when moving to next round
+    currentTrackIdRef.current = null
     
     if (tracks.length === 0) {
       loadTracks(selectedGenre, selectedType).then(() => {
@@ -530,6 +551,7 @@ function App() {
     setShowAnswer(false)
     setAudioStarted(false)
     setAutoStartIn(null)
+    currentTrackIdRef.current = null
     
     // Clean up all state
     setGameMode(null)
