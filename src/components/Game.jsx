@@ -16,6 +16,8 @@ export default function Game({
   currentRound,
   totalRounds = 10,
   players,
+  playerAnswers = [],
+  socketId,
   audioStarted,
   onChoice,
   onLeave,
@@ -149,6 +151,14 @@ export default function Game({
                     ? 'choice-correct'
                     : isSelected ? 'choice-incorrect' : ''
                   : ''
+                
+                // Get players who chose this option (excluding current player)
+                const playersWhoChose = isMultiplayer && !showAnswer
+                  ? playerAnswers
+                      .filter(answer => answer.answerIndex === idx && answer.playerId !== socketId)
+                      .map(answer => answer.playerName)
+                  : []
+                
                 return (
                   <button
                     key={idx}
@@ -157,6 +167,15 @@ export default function Game({
                     disabled={showAnswer || hasSubmittedAnswer || !audioStarted}
                   >
                     <span className="choice-label">{opt.label}</span>
+                    {playersWhoChose.length > 0 && (
+                      <div className="choice-badges">
+                        {playersWhoChose.map((playerName, i) => (
+                          <span key={i} className="choice-badge" title={playerName}>
+                            {playerName.substring(0, 3).toUpperCase()}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </button>
                 )
               })}

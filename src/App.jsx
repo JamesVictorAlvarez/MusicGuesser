@@ -55,6 +55,7 @@ function App() {
   const [gameOver, setGameOver] = useState(false)
   const [finalLeaderboard, setFinalLeaderboard] = useState([])
   const [toast, setToast] = useState(null)
+  const [playerAnswers, setPlayerAnswers] = useState([])
 
   const roomIdRef = useRef('')
   const isMultiplayerRef = useRef(false)
@@ -103,6 +104,7 @@ function App() {
       setGameOver(false)
       setFinalLeaderboard([])
       setLoading(false) // Clear loading state
+      setPlayerAnswers([]) // Clear player answers
       setRoomId(data.roomId)
       roomIdRef.current = data.roomId
       setRoomCode(data.roomId)
@@ -127,6 +129,7 @@ function App() {
       setGameOver(false)
       setFinalLeaderboard([])
       setLoading(false) // Clear loading state
+      setPlayerAnswers([]) // Clear player answers
       setRoomId(data.roomId)
       roomIdRef.current = data.roomId
       // hostId will be set from the first room-updated event
@@ -144,6 +147,10 @@ function App() {
       
       if (data.players && Array.isArray(data.players)) {
         setPlayers(data.players)
+      }
+      // Update player answers for showing who chose what
+      if (data.answers && Array.isArray(data.answers)) {
+        setPlayerAnswers(data.answers)
       }
       // Always update hostId if it's provided - this is critical for showing/hiding leave button
       if (data.hostId !== undefined && data.hostId !== null) {
@@ -305,6 +312,7 @@ function App() {
       setIsCorrect(null)
       setAudioStarted(false)
       setLoading(false)
+      setPlayerAnswers([]) // Clear answers for new round
       
       // Update track ID ref for timeout validation
       currentTrackIdRef.current = data.track?.id || null
@@ -718,6 +726,7 @@ function App() {
     setCurrentRound(0)
     setGameOver(false)
     setFinalLeaderboard([])
+    setPlayerAnswers([]) // Clear player answers
   }
 
   const handlePlayerReady = () => {
@@ -879,6 +888,8 @@ function App() {
           currentRound={currentRound}
           totalRounds={totalRounds}
           players={players}
+          playerAnswers={playerAnswers}
+          socketId={socketIdRef.current || socketId}
           audioStarted={audioStarted}
           onChoice={handleChoice}
           onLeave={handleLeave}

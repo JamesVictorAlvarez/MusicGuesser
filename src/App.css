@@ -945,6 +945,7 @@
 }
 
 .choice-btn {
+  position: relative;
   text-align: left;
   padding: 20px 24px;
   border: 2px solid var(--line);
@@ -967,6 +968,43 @@
   font-weight: 700;
   color: var(--fg);
   font-size: 1.1rem;
+}
+
+.choice-badges {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.choice-badge {
+  display: inline-block;
+  padding: 2px 6px;
+  background: var(--hint);
+  color: var(--bg);
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  line-height: 1.2;
+  min-width: 24px;
+  text-align: center;
+  animation: badgePopIn 0.3s ease-out;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+@keyframes badgePopIn {
+  from {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .choice-sublabel {
