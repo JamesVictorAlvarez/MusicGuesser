@@ -14,7 +14,15 @@ export function initializeSocket() {
     }
     
     if (!socket) {
-      socket = io('http://localhost:3001', { autoConnect: false })
+      const serverUrl = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001'
+      console.log('Initializing socket connection to:', serverUrl)
+      socket = io(serverUrl, { 
+        autoConnect: false,
+        transports: ['websocket', 'polling'],
+        reconnection: true,
+        reconnectionAttempts: 5,
+        reconnectionDelay: 1000
+      })
     }
     return socket
   } catch (e) {

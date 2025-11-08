@@ -35,8 +35,9 @@ export function useSocket() {
 
     socket.on('connect_error', (error) => {
       console.error('Socket connection error:', error)
+      const serverUrl = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001'
       setSocketConnected(false)
-      setSocketError(`Cannot connect to server. Make sure the server is running on port 3001.`)
+      setSocketError(`Cannot connect to server at ${serverUrl}. Make sure the server is running and ngrok is active.`)
     })
 
     return () => {
