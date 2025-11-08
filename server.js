@@ -245,17 +245,17 @@ io.on('connection', (socket) => {
       playerName: player.name
     })
     
+    // Calculate points but don't add to score yet - wait until round ends
     if (isCorrect) {
       // Points in hundreds, with milliseconds counting
       // Max 1000 points at 0 seconds, 0 points at 10 seconds
       const points = Math.max(0, Math.floor((10 - timeTaken) * 100))
-      player.score += points
       player.currentRoundScore = points
     } else {
       player.currentRoundScore = 0
     }
     
-    // Update all players with new scores (only send to active players)
+    // Update all players with new answers (but don't update scores yet)
     room.players.forEach((player, playerId) => {
       io.to(playerId).emit('room-updated', getRoomState(roomId))
     })
@@ -265,6 +265,17 @@ io.on('connection', (socket) => {
     // Check if all remaining players answered
     if (room.answers.size === room.players.size && room.players.size > 0) {
       console.log(`All players answered, showing answers...`)
+      
+      // NOW apply the round scores to the main scores
+      room.players.forEach((player) => {
+        player.score += player.currentRoundScore
+      })
+      
+      // Send updated scores to all players
+      room.players.forEach((player, playerId) => {
+        io.to(playerId).emit('room-updated', getRoomState(roomId))
+      })
+      
       // Emit event to all players to show the answer
       room.players.forEach((player, playerId) => {
         io.to(playerId).emit('all-answers-submitted')
@@ -377,6 +388,18 @@ io.on('connection', (socket) => {
         
         // Only send to active players
         if (currentRoom) {
+          currentRoom.players.forEach((player, playerId) => {
+            io.to(playerId).emit('room-updated', getRoomState(roomId))
+          })
+        }
+        
+        // NOW apply the round scores to the main scores (for timeout case)
+        if (currentRoom) {
+          currentRoom.players.forEach((player) => {
+            player.score += player.currentRoundScore
+          })
+          
+          // Send updated scores to all players
           currentRoom.players.forEach((player, playerId) => {
             io.to(playerId).emit('room-updated', getRoomState(roomId))
           })
