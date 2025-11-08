@@ -69,6 +69,42 @@ export async function getITunesTracksByPlaylist(playlistName, limit = 50) {
 	}
 }
 
+// Get random album covers for carousel display
+export async function getRandomAlbumCovers(count = 20) {
+	try {
+		const searchTerms = ['pop', 'rock', 'hip hop', 'indie', 'electronic', 'r&b', 'dance', 'latin', 'country', 'jazz', 'metal', 'k-pop', 'j-pop', 'classical', 'blues', 'soul', 'funk', 'reggae', 'alternative', 'folk'];
+		const covers = [];
+		const usedUrls = new Set();
+		
+		// Search multiple genres to get diverse album covers
+		for (const term of searchTerms) {
+			if (covers.length >= count) break;
+			
+			const url = `https://itunes.apple.com/search?term=${encodeURIComponent(term)}&entity=album&limit=5&country=US`;
+			const res = await fetch(url);
+			
+			if (res.ok) {
+				const data = await res.json();
+				const albums = Array.isArray(data.results) ? data.results : [];
+				
+				for (const album of albums) {
+					if (covers.length >= count) break;
+					if (album.artworkUrl100 && !usedUrls.has(album.artworkUrl100)) {
+						usedUrls.add(album.artworkUrl100);
+						// Use higher resolution
+						covers.push(album.artworkUrl100.replace('100x100', '600x600'));
+					}
+				}
+			}
+		}
+		
+		return covers;
+	} catch (err) {
+		console.error('Error fetching random album covers:', err);
+		return [];
+	}
+}
+
 // Get album artwork for a genre by searching iTunes
 export async function getITunesAlbumArtworkForGenre(genre) {
 	try {

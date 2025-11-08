@@ -14,12 +14,81 @@
   max-width: 100%;
   padding: 40px 20px;
   text-align: center;
+  position: relative;
 }
 
 .mode-selector h1 {
   font-size: 2.5rem;
-  margin-bottom: 10px;
+  margin-bottom: 15px;
   color: var(--builtin);
+  position: relative;
+  z-index: 2;
+}
+
+.album-carousel-wrapper {
+  position: relative;
+  width: 100%;
+  max-width: 800px;
+  height: 150px;
+  margin: 0 auto 20px auto;
+  overflow: hidden;
+  border-radius: 12px;
+  pointer-events: none;
+}
+
+.album-carousel {
+  display: flex;
+  gap: 15px;
+  height: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-behavior: smooth;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  padding: 0 30px;
+  align-items: center;
+}
+
+.album-carousel::-webkit-scrollbar {
+  display: none;
+}
+
+.album-carousel-item {
+  flex-shrink: 0;
+  width: 120px;
+  height: 120px;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  transition: transform 0.3s ease;
+}
+
+.album-carousel-item:hover {
+  transform: scale(1.05);
+}
+
+.album-carousel-cover {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.album-carousel-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    to right,
+    var(--bg) 0%,
+    transparent 10%,
+    transparent 90%,
+    var(--bg) 100%
+  );
+  pointer-events: none;
+  z-index: 1;
 }
 
 .subtitle {
@@ -35,7 +104,7 @@
   align-items: stretch;
   justify-content: center;
   width: 100%;
-  min-height: 60vh;
+  min-height: auto;
   position: relative;
 }
 

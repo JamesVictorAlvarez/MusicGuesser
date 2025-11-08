@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { getPlaylistCoverForGenre } from '../services/spotify'
+import { getRandomAlbumCovers } from '../services/itunes'
 
 export default function Menu({ onPlaySolo, onPlayMultiplayer, onSettings, selectedGenre: initialGenre = 'any', selectedType: initialType = 'any', onGenreChange }) {
   const [selectedGenre, setSelectedGenre] = useState(initialGenre)
@@ -10,6 +11,8 @@ export default function Menu({ onPlaySolo, onPlayMultiplayer, onSettings, select
   const [searchMode, setSearchMode] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [showSearchSuggestions, setShowSearchSuggestions] = useState(false)
+  const [albumCovers, setAlbumCovers] = useState([])
+  const carouselRef = useRef(null)
   
   // Popular playlist/search terms that work well with iTunes Search API
   const popularPlaylistTerms = [
@@ -54,6 +57,46 @@ export default function Menu({ onPlaySolo, onPlayMultiplayer, onSettings, select
     "Hard Rock",
     "Indie Rock"
   ]
+
+  // Load random album covers for carousel
+  useEffect(() => {
+    const loadAlbumCovers = async () => {
+      const covers = await getRandomAlbumCovers(20)
+      if (covers.length > 0) {
+        // Duplicate covers for seamless infinite scroll
+        setAlbumCovers([...covers, ...covers])
+      }
+    }
+    loadAlbumCovers()
+  }, [])
+
+  // Auto-scroll carousel continuously
+  useEffect(() => {
+    if (albumCovers.length === 0 || showPlayOptions || !carouselRef.current) return
+    
+    let scrollPosition = 0
+    const scrollSpeed = 0.5 // pixels per frame
+    const slideWidth = 135 // width of each album cover (120px) + gap (15px)
+    
+    const scroll = () => {
+      if (!carouselRef.current) return
+      
+      scrollPosition += scrollSpeed
+      const maxScroll = (albumCovers.length / 2) * slideWidth
+      
+      // Reset to beginning when we reach the end of first set
+      if (scrollPosition >= maxScroll) {
+        scrollPosition = 0
+        carouselRef.current.scrollLeft = 0
+      } else {
+        carouselRef.current.scrollLeft = scrollPosition
+      }
+    }
+    
+    const interval = setInterval(scroll, 16) // ~60fps
+    
+    return () => clearInterval(interval)
+  }, [albumCovers.length, showPlayOptions])
 
   useEffect(() => {
     const genres = ['pop', 'rock', 'hip-hop', 'indie', 'electronic', 'r-n-b', 'dance', 'latin', 'country', 'jazz', 'metal', 'k-pop', 'j-pop', 'opm']
@@ -104,28 +147,42 @@ export default function Menu({ onPlaySolo, onPlayMultiplayer, onSettings, select
       <div className="mode-selector">
         <h1>Music Guesser</h1>
         {!showPlayOptions ? (
-          <div className="menu-content">
-            <div className="menu-actions menu-actions-no-divider">
-              <button
-                className="menu-btn menu-btn-primary"
-                onClick={handlePlaySoloClick}
-              >
-                Play Solo
-              </button>
-              <button
-                className="menu-btn menu-btn-primary"
-                onClick={onPlayMultiplayer}
-              >
-                Play Multiplayer
-              </button>
-              <button
-                className="menu-btn"
-                onClick={onSettings}
-              >
-                Settings
-              </button>
+          <>
+            {albumCovers.length > 0 && (
+              <div className="album-carousel-wrapper">
+                <div className="album-carousel" ref={carouselRef}>
+                  {albumCovers.map((cover, index) => (
+                    <div key={index} className="album-carousel-item">
+                      <img src={cover} alt="Album cover" className="album-carousel-cover" />
+                    </div>
+                  ))}
+                </div>
+                <div className="album-carousel-overlay"></div>
+              </div>
+            )}
+            <div className="menu-content">
+              <div className="menu-actions menu-actions-no-divider">
+                <button
+                  className="menu-btn menu-btn-primary"
+                  onClick={handlePlaySoloClick}
+                >
+                  Play Solo
+                </button>
+                <button
+                  className="menu-btn menu-btn-primary"
+                  onClick={onPlayMultiplayer}
+                >
+                  Play Multiplayer
+                </button>
+                <button
+                  className="menu-btn"
+                  onClick={onSettings}
+                >
+                  Settings
+                </button>
+              </div>
             </div>
-          </div>
+          </>
         ) : (
           <div className="menu-content">
             <div className="menu-actions">
