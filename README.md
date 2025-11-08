@@ -1,14 +1,15 @@
-# 🎵 Music Guesser
+# Music Guesser
 
 A fun web app where you guess songs or artists from 10-second audio clips - like a mini-Heardle clone!
 
 ## Features
 
-- 🎧 **Guess the Song Mode**: Listen to a 10-second clip and guess the song name
-- 🎤 **Guess the Artist Mode**: Listen to a 10-second clip and guess the artist
-- 🎯 **Score Tracking**: Keep track of your correct guesses
-- 🎨 **Beautiful UI**: Modern, gradient-based design with smooth animations
-- 🆓 **Free to Use**: Uses Spotify's free Web API
+- **Guess the Song Mode**: Listen to a 10-second clip and guess the song name
+- **Guess the Artist Mode**: Listen to a 10-second clip and guess the artist
+- **Score Tracking**: Keep track of your correct guesses
+- **Multiplayer Mode**: Play with friends in real-time multiplayer games
+- **Beautiful UI**: Modern, gradient-based design with smooth animations
+- **Free to Use**: Uses iTunes API for track data and previews
 
 ## Setup
 
@@ -27,7 +28,7 @@ A fun web app where you guess songs or artists from 10-second audio clips - like
 
 ### Spotify API Setup (Optional)
 
-The app can work in demo mode without Spotify credentials, but for the full experience:
+Spotify API integration is included in the codebase but is not actively used. The app primarily uses the iTunes API for track data and preview URLs. If you want to enable Spotify support in the future:
 
 1. Go to [Spotify Developer Dashboard](https://developer.spotify.com/dashboard)
 2. Create a new app
@@ -69,26 +70,23 @@ npm run build
 ## How It Works
 
 1. Choose a game mode (Guess the Song or Guess the Artist)
-2. Click "Play 10s Clip" to hear the audio preview
-3. Type your guess in the input field
+2. Listen to the 10-second audio preview
+3. Select your answer from the multiple choice options
 4. Submit your answer
 5. See if you're correct and view your score!
 
 ## Notes
 
-- The app uses Spotify's preview URLs (30-second clips), but limits playback to 10 seconds
+- The app uses iTunes API for track data and preview URLs
 - Some tracks may not have preview URLs available
 - The app filters out tracks without previews automatically
-- For production use, you may want to implement OAuth flow for better API access
+- Spotify API code is present but not actively used - the app falls back to iTunes API
 
 ## Technologies
 
 - React 18
 - Vite
-- Spotify Web API
-- Modern CSS with gradients and animations
-
-## License
-
-MIT
-
+- Socket.io (for multiplayer)
+- Express (for server)
+- iTunes API (primary track source)
+- Spotify Web API (included but not actively used)
