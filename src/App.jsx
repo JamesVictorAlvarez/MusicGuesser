@@ -32,6 +32,12 @@ function App() {
   const [timePlayed, setTimePlayed] = useState(0)
   const [autoStartIn, setAutoStartIn] = useState(null)
   const [audioStarted, setAudioStarted] = useState(false)
+  
+  // Volume state (persisted in localStorage)
+  const [volume, setVolume] = useState(() => {
+    const savedVolume = localStorage.getItem('musicGuesserVolume')
+    return savedVolume !== null ? parseFloat(savedVolume) : 1.0
+  })
 
   // Round tracking (for both single and multiplayer)
   const [currentRound, setCurrentRound] = useState(0)
@@ -56,7 +62,17 @@ function App() {
   // Hooks
   const { socket, socketConnected, socketError, socketId } = useSocket()
   const { tracks, setTracks, loading, setLoading, loadTracks } = useTracks()
-  const { audioRef, roundStartAtRef, startAudioPlayback, startAutoPlayCountdown, stopAudio, getElapsedTime, clearTimers } = useAudio()
+  const { audioRef, roundStartAtRef, startAudioPlayback, startAutoPlayCountdown, stopAudio, getElapsedTime, clearTimers } = useAudio(volume)
+
+  // Handle volume change
+  const handleVolumeChange = (newVolume) => {
+    setVolume(newVolume)
+    localStorage.setItem('musicGuesserVolume', newVolume.toString())
+    // Apply volume to current audio element if it exists
+    if (audioRef.current) {
+      audioRef.current.volume = newVolume
+    }
+  }
 
   // Update socketId ref when socket connects
   useEffect(() => {
@@ -367,6 +383,9 @@ function App() {
     if (audioRef.current && gameStarted && currentTrack) {
       const audio = audioRef.current
       
+      // Apply volume to audio element
+      audio.volume = volume
+      
       // Listen for when audio actually starts playing
       const handlePlay = () => {
         setAudioStarted(true)
@@ -395,7 +414,7 @@ function App() {
         audio.removeEventListener('pause', handlePause)
       }
     }
-  }, [currentTrack, gameStarted, audioRef])
+  }, [currentTrack, gameStarted, audioRef, volume])
 
   const loadNewTrack = (tracksToUse = null) => {
     const tracksPool = tracksToUse || tracks
@@ -612,7 +631,13 @@ function App() {
   }
 
   if (view === 'settings') {
-    return <Settings onBack={() => setView('menu')} />
+    return (
+      <Settings 
+        onBack={() => setView('menu')}
+        volume={volume}
+        onVolumeChange={handleVolumeChange}
+      />
+    )
   }
 
   if (view === 'multiplayer-menu') {

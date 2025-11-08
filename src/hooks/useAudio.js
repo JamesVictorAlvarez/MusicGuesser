@@ -1,11 +1,18 @@
 import { useRef, useEffect } from 'react'
 
-export function useAudio() {
+export function useAudio(volume = 1) {
   const audioRef = useRef(null)
   const roundStartAtRef = useRef(null)
   const countdownIntervalRef = useRef(null)
   const autoStartTimeoutRef = useRef(null)
   const roundAutoEndTimeoutRef = useRef(null)
+
+  // Apply volume to audio element when volume changes
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.volume = volume
+    }
+  }, [volume])
 
   // Cleanup timers on unmount
   useEffect(() => {
@@ -19,6 +26,7 @@ export function useAudio() {
   const startAudioPlayback = (onTimeout) => {
     if (!audioRef.current) return
     audioRef.current.currentTime = 0
+    audioRef.current.volume = volume
     audioRef.current.play()
     roundStartAtRef.current = performance.now()
     
