@@ -181,7 +181,8 @@ function App() {
       if (tracksToUse.length === 0) {
         console.log('Host: Loading tracks...')
         setLoading(true)
-        const fetchedTracks = await loadTracks(selectedGenre, selectedType)
+        const playlistName = window.__playlistName || null
+        const fetchedTracks = await loadTracks(selectedGenre, selectedType, playlistName)
         if (fetchedTracks.length > 0) {
           setTracks(fetchedTracks)
           tracksToUse = fetchedTracks
@@ -367,7 +368,8 @@ function App() {
   // Load tracks when game starts (single player only)
   useEffect(() => {
     if (gameStarted && !isMultiplayer && tracks.length === 0) {
-      loadTracks(selectedGenre, selectedType)
+      const playlistName = window.__playlistName || null
+      loadTracks(selectedGenre, selectedType, playlistName)
     }
   }, [gameStarted, isMultiplayer, selectedGenre, selectedType, loadTracks])
 
@@ -553,7 +555,8 @@ function App() {
     currentTrackIdRef.current = null
     
     if (tracks.length === 0) {
-      loadTracks(selectedGenre, selectedType).then(() => {
+      const playlistName = window.__playlistName || null
+      loadTracks(selectedGenre, selectedType, playlistName).then(() => {
         setCurrentTrack(null)
       })
     } else {
@@ -610,7 +613,7 @@ function App() {
           setSelectedGenre(genre)
           setSelectedType(type)
         }}
-        onPlaySolo={({ genre, type, rounds }) => {
+        onPlaySolo={({ genre, type, rounds, playlistName }) => {
           setSelectedGenre(genre)
           setSelectedType(type)
           setTotalRounds(rounds || 10)
@@ -620,6 +623,13 @@ function App() {
           setScore(0)
           setView('game')
           setGameStarted(true)
+          // Store search term for track loading
+          if (playlistName) {
+            // We'll pass this to loadTracks when needed
+            window.__playlistName = playlistName
+          } else {
+            window.__playlistName = null
+          }
         }}
         onPlayMultiplayer={() => {
           setIsMultiplayer(true)

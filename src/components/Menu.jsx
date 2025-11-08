@@ -7,6 +7,53 @@ export default function Menu({ onPlaySolo, onPlayMultiplayer, onSettings, select
   const [genreCovers, setGenreCovers] = useState({})
   const [showPlayOptions, setShowPlayOptions] = useState(false)
   const [selectedRounds, setSelectedRounds] = useState(10)
+  const [searchMode, setSearchMode] = useState(false)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [showSearchSuggestions, setShowSearchSuggestions] = useState(false)
+  
+  // Popular playlist/search terms that work well with iTunes Search API
+  const popularPlaylistTerms = [
+    "Today's Hits",
+    "Top 100",
+    "Chill Mix",
+    "Workout",
+    "Party Mix",
+    "Relaxing",
+    "Hip Hop",
+    "Pop Hits",
+    "Rock Classics",
+    "Country Hits",
+    "Dance Party",
+    "R&B Hits",
+    "Indie Pop",
+    "Electronic",
+    "Jazz",
+    "Latin Hits",
+    "K-Pop",
+    "Throwback",
+    "New Music",
+    "Acoustic",
+    "Alternative",
+    "Blues",
+    "Classical",
+    "Folk",
+    "Gospel",
+    "Metal",
+    "Punk",
+    "Reggae",
+    "Soul",
+    "Funk",
+    "Disco",
+    "House",
+    "Techno",
+    "EDM",
+    "Trap",
+    "Rap",
+    "Country Pop",
+    "Soft Rock",
+    "Hard Rock",
+    "Indie Rock"
+  ]
 
   useEffect(() => {
     const genres = ['pop', 'rock', 'hip-hop', 'indie', 'electronic', 'r-n-b', 'dance', 'latin', 'country', 'jazz', 'metal', 'k-pop', 'j-pop', 'opm']
@@ -26,8 +73,25 @@ export default function Menu({ onPlaySolo, onPlayMultiplayer, onSettings, select
     } else {
       // Start the game
       if (onPlaySolo) {
-        onPlaySolo({ genre: selectedGenre, type: selectedType, rounds: selectedRounds })
+        if (searchMode && searchTerm.trim()) {
+          onPlaySolo({ genre: 'search', type: 'any', rounds: selectedRounds, playlistName: searchTerm.trim() })
+        } else {
+          onPlaySolo({ genre: selectedGenre, type: selectedType, rounds: selectedRounds })
+        }
       }
+    }
+  }
+  
+  const handleSearchToggle = () => {
+    setSearchMode(!searchMode)
+    if (!searchMode) {
+      // Switching to search mode - clear genre/type selection
+      setSelectedGenre('any')
+      setSelectedType('any')
+      if (onGenreChange) onGenreChange({ genre: 'any', type: 'any' })
+    } else {
+      // Switching away from search mode - clear search term
+      setSearchTerm('')
     }
   }
 
@@ -68,7 +132,7 @@ export default function Menu({ onPlaySolo, onPlayMultiplayer, onSettings, select
               <button
                 className="menu-btn menu-btn-primary"
                 onClick={handlePlaySoloClick}
-                disabled={!selectedRounds}
+                disabled={!selectedRounds || (searchMode && !searchTerm.trim())}
               >
                 Start Game
               </button>
@@ -96,9 +160,72 @@ export default function Menu({ onPlaySolo, onPlayMultiplayer, onSettings, select
                 </div>
               </div>
 
-              <div className="genre-selection">
-                <h2>Select Genre</h2>
-                <div className="genre-grid">
+              <div className="search-toggle">
+                <button
+                  className={`search-toggle-btn ${searchMode ? 'search-toggle-active' : ''}`}
+                  onClick={handleSearchToggle}
+                >
+                  {searchMode ? '🔍 Search Mode' : '🎵 Genre Mode'}
+                </button>
+              </div>
+
+              {searchMode ? (
+                <div className="search-selection">
+                  <h2>Search Music</h2>
+                  <p className="search-hint">
+                    Search for tracks by playlist name, genre, artist, or any search term.
+                    <br />
+                    <small>The app will find tracks matching your search from iTunes.</small>
+                  </p>
+                  <div className="search-input-wrapper">
+                    <input
+                      type="text"
+                      className="search-input"
+                      placeholder="e.g., Today's Hits, Pop, Taylor Swift, Chill Mix..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter' && searchTerm.trim()) {
+                          handlePlaySoloClick()
+                        }
+                      }}
+                    />
+                    <button
+                      className="search-suggestions-toggle"
+                      onClick={() => setShowSearchSuggestions(!showSearchSuggestions)}
+                      title="Show popular search suggestions"
+                    >
+                      {showSearchSuggestions ? '▼' : '▶'} Suggestions
+                    </button>
+                  </div>
+                  
+                  {showSearchSuggestions && (
+                    <div className="search-suggestions-container">
+                      <h3>Popular Search Terms:</h3>
+                      <p className="search-suggestions-hint">
+                        Click any term below to use it. These work well with iTunes search.
+                      </p>
+                      <div className="search-suggestions-grid">
+                        {popularPlaylistTerms.map((term) => (
+                          <button
+                            key={term}
+                            className={`search-suggestion-btn ${searchTerm === term ? 'search-suggestion-active' : ''}`}
+                            onClick={() => {
+                              setSearchTerm(term)
+                              setShowSearchSuggestions(false)
+                            }}
+                          >
+                            {term}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="genre-selection">
+                  <h2>Select Genre</h2>
+                  <div className="genre-grid">
                   {[
                     ['any','Any'],
                     ['pop','Pop'],['rock','Rock'],['hip-hop','Hip Hop'],['indie','Indie'],['electronic','Electronic'],
@@ -135,7 +262,8 @@ export default function Menu({ onPlaySolo, onPlayMultiplayer, onSettings, select
                     )
                   })}
                 </div>
-              </div>
+                </div>
+              )}
             </div>
           </div>
         )}

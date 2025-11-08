@@ -48,6 +48,27 @@ export async function getITunesRandomTracks(limit = 50, preferredTerm) {
 	return [];
 }
 
+// Search for tracks by playlist name (uses playlist name as search term)
+export async function getITunesTracksByPlaylist(playlistName, limit = 50) {
+	try {
+		// Use playlist name as search term to find related tracks
+		const url = `https://itunes.apple.com/search?term=${encodeURIComponent(playlistName)}&entity=song&limit=${limit}&country=US`;
+		const res = await fetch(url);
+		if (!res.ok) {
+			console.error('iTunes API error:', res.status);
+			return [];
+		}
+		const data = await res.json();
+		const items = Array.isArray(data.results) ? data.results : [];
+		return items
+			.filter(item => !!item.previewUrl)
+			.map(mapITunesToTrack);
+	} catch (err) {
+		console.error('Error fetching iTunes tracks by playlist:', err);
+		return [];
+	}
+}
+
 // Get album artwork for a genre by searching iTunes
 export async function getITunesAlbumArtworkForGenre(genre) {
 	try {
