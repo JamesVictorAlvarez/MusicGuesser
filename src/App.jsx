@@ -26,6 +26,7 @@ function App() {
   const [isCorrect, setIsCorrect] = useState(null)
   const [score, setScore] = useState(0)
   const [showAnswer, setShowAnswer] = useState(false)
+  const [hasSubmittedAnswer, setHasSubmittedAnswer] = useState(false)
   const [gameStarted, setGameStarted] = useState(false)
   const [selectedGenre, setSelectedGenre] = useState('any')
   const [selectedType, setSelectedType] = useState('any')
@@ -89,6 +90,17 @@ function App() {
     socketInstance.on('room-created', (data) => {
       console.log('Room created:', data)
       hasLeftRoomRef.current = false
+      // Reset game state for new room
+      setGameStarted(false)
+      setCurrentTrack(null)
+      setShowAnswer(false)
+      setHasSubmittedAnswer(false)
+      setSelectedIdx(null)
+      setOptions([])
+      setCurrentRound(0)
+      setGameOver(false)
+      setFinalLeaderboard([])
+      setLoading(false) // Clear loading state
       setRoomId(data.roomId)
       roomIdRef.current = data.roomId
       setRoomCode(data.roomId)
@@ -102,6 +114,17 @@ function App() {
     socketInstance.on('room-joined', (data) => {
       console.log('Room joined:', data)
       hasLeftRoomRef.current = false
+      // Reset game state for new room
+      setGameStarted(false)
+      setCurrentTrack(null)
+      setShowAnswer(false)
+      setHasSubmittedAnswer(false)
+      setSelectedIdx(null)
+      setOptions([])
+      setCurrentRound(0)
+      setGameOver(false)
+      setFinalLeaderboard([])
+      setLoading(false) // Clear loading state
       setRoomId(data.roomId)
       roomIdRef.current = data.roomId
       // hostId will be set from the first room-updated event
@@ -155,10 +178,20 @@ function App() {
       console.log('=== LOAD-ROUND EVENT RECEIVED ===')
       console.log('Current tracks in state:', tracks.length, 'isHost:', data.isHost)
       console.log('hasLeftRoomRef:', hasLeftRoomRef.current)
+      console.log('roomIdRef.current:', roomIdRef.current)
+      console.log('isMultiplayer:', isMultiplayer)
       
       // Ignore if player has left the room - CHECK THIS FIRST
       if (hasLeftRoomRef.current) {
         console.log('IGNORING load-round event - player has left the room')
+        return
+      }
+      
+      // Double check: if we don't have a valid room ID, ignore and clear loading
+      const currentRoomId = roomIdRef.current || roomId
+      if (!currentRoomId) {
+        console.log('IGNORING load-round event - no room ID, clearing loading state')
+        setLoading(false)
         return
       }
       
@@ -182,19 +215,45 @@ function App() {
         console.log('Host: Loading tracks...')
         setLoading(true)
         const playlistName = window.__playlistName || null
-        const fetchedTracks = await loadTracks(selectedGenre, selectedType, playlistName)
-        if (fetchedTracks.length > 0) {
-          setTracks(fetchedTracks)
-          tracksToUse = fetchedTracks
-        } else {
+        try {
+          const fetchedTracks = await loadTracks(selectedGenre, selectedType, playlistName)
+          // Check again after async operation
+          if (hasLeftRoomRef.current || !roomIdRef.current) {
+            console.log('IGNORING load-round - player left or no room ID after loading tracks')
+            setLoading(false)
+            return
+          }
+          if (fetchedTracks.length > 0) {
+            setTracks(fetchedTracks)
+            tracksToUse = fetchedTracks
+          } else {
+            setLoading(false)
+            return
+          }
+        } catch (error) {
+          console.error('Error loading tracks:', error)
           setLoading(false)
           return
         }
-        setLoading(false)
       }
       
       // Host: Load and send new track
+      // Check again before loading track
+      if (hasLeftRoomRef.current || !roomIdRef.current) {
+        console.log('IGNORING load-round - player left or no room ID before loading track')
+        setLoading(false)
+        return
+      }
+      
+      // Clear loading state before attempting to load track
+      setLoading(false)
+      
       setTimeout(() => {
+        // Final check before sending data
+        if (hasLeftRoomRef.current || !roomIdRef.current) {
+          console.log('IGNORING load-round - player left or no room ID in setTimeout')
+          return
+        }
         if (tracksToUse.length > 0) {
           loadNewTrack(tracksToUse)
         } else if (tracks.length > 0) {
@@ -238,6 +297,7 @@ function App() {
       setOptions(data.options || [])
       setGameMode(data.gameMode)
       setShowAnswer(false)
+      setHasSubmittedAnswer(false)
       setSelectedIdx(null)
       setTimePlayed(0)
       setIsCorrect(null)
@@ -278,6 +338,17 @@ function App() {
       }
     })
 
+    socketInstance.on('all-answers-submitted', () => {
+      console.log('All answers submitted - showing answer now')
+      // Ignore if player has left the room
+      if (hasLeftRoomRef.current) {
+        console.log('Ignoring all-answers-submitted event - player has left the room')
+        return
+      }
+      // Now show the answer to all players
+      setShowAnswer(true)
+    })
+
     socketInstance.on('game-over', (data) => {
       console.log('Game over:', data)
       
@@ -316,6 +387,7 @@ function App() {
         socketInstance.off('game-started')
         socketInstance.off('load-round')
         socketInstance.off('round-started')
+        socketInstance.off('all-answers-submitted')
         socketInstance.off('game-over')
         socketInstance.off('room-closed')
         socketInstance.off('room-error')
@@ -347,6 +419,22 @@ function App() {
 
     socketInstance.on('room-error', (data) => {
       console.error('Room error:', data)
+      // If we get a room error, it means we're trying to use a room that doesn't exist
+      // Clear room references and reset state
+      if (data.message === 'Room not found' || data.message === 'You are not in this room') {
+        console.log('Room error detected - clearing room references')
+        hasLeftRoomRef.current = true
+        roomIdRef.current = ''
+        isMultiplayerRef.current = false
+        setRoomId('')
+        setRoomCode('')
+        setGameStarted(false)
+        setCurrentTrack(null)
+        setShowAnswer(false)
+        setHasSubmittedAnswer(false)
+        // Don't show alert for these errors as they're likely from cleanup
+        return
+      }
       alert(data.message)
     })
 
@@ -358,6 +446,7 @@ function App() {
         socketInstance.off('game-started')
         socketInstance.off('load-round')
         socketInstance.off('round-started')
+        socketInstance.off('all-answers-submitted')
         socketInstance.off('game-over')
         socketInstance.off('room-closed')
         socketInstance.off('room-error')
@@ -425,6 +514,15 @@ function App() {
       return
     }
     
+    const currentRoomId = roomIdRef.current || roomId
+    const currentIsMultiplayer = isMultiplayerRef.current || isMultiplayer
+    
+    // CRITICAL: Check BEFORE doing any work if we should proceed
+    if (currentIsMultiplayer && (hasLeftRoomRef.current || !currentRoomId)) {
+      console.log('Not loading track - player left room or no room ID in multiplayer')
+      return
+    }
+    
     const randomIndex = Math.floor(Math.random() * tracksPool.length)
     const track = tracksPool[randomIndex]
     
@@ -435,6 +533,7 @@ function App() {
     
     setIsCorrect(null)
     setShowAnswer(false)
+    setHasSubmittedAnswer(false)
     setTimePlayed(0)
     setSelectedIdx(null)
     setAutoStartIn(null)
@@ -454,13 +553,19 @@ function App() {
       setTracks(prev => prev.filter((_, idx) => idx !== randomIndex))
     }
     
-    const currentRoomId = roomIdRef.current || roomId
-    const currentIsMultiplayer = isMultiplayerRef.current || isMultiplayer
     const socketInstance = getSocket()
+    
+    // Final check before sending
+    if (currentIsMultiplayer && (hasLeftRoomRef.current || !currentRoomId)) {
+      console.log('Not sending round data - player left room or no room ID')
+      return
+    }
+    
     const shouldSendToServer = currentIsMultiplayer && currentRoomId && socketInstance && socketInstance.connected
     
     if (shouldSendToServer) {
       console.log('=== SENDING ROUND DATA TO SERVER ===')
+      console.log('Room ID:', currentRoomId)
       socketInstance.emit('set-round-data', {
         roomId: currentRoomId,
         track,
@@ -500,7 +605,6 @@ function App() {
     const chosen = options[idx]
     const correct = !!chosen?.isCorrect
     setIsCorrect(correct)
-    setShowAnswer(true)
     
     // Clear track ID ref to prevent timeout from firing
     currentTrackIdRef.current = null
@@ -513,6 +617,8 @@ function App() {
     const currentRoomId = roomIdRef.current || roomId
     
     if (isMultiplayer && currentRoomId && socketInstance) {
+      // In multiplayer, don't show answer immediately - wait for all players
+      setHasSubmittedAnswer(true)
       socketInstance.emit('submit-answer', {
         roomId: currentRoomId,
         answerIndex: idx,
@@ -521,6 +627,8 @@ function App() {
       // Stop audio and clear timers to avoid late timeouts affecting next rounds
       stopAudio()
     } else {
+      // Single player: show answer immediately
+      setShowAnswer(true)
       if (correct) {
         // Points in hundreds, with milliseconds counting
         // Max 1000 points at 0 seconds, 0 points at 10 seconds
@@ -565,15 +673,31 @@ function App() {
   }
 
   const handleLeave = () => {
+    // Mark that we're leaving FIRST
+    hasLeftRoomRef.current = true
+    
     // Stop all game activity first
     stopAudio()
     clearTimers()
     setGameStarted(false)
     setCurrentTrack(null)
     setShowAnswer(false)
+    setHasSubmittedAnswer(false)
     setAudioStarted(false)
     setAutoStartIn(null)
     currentTrackIdRef.current = null
+    
+    // Leave the room on the server if we're in multiplayer
+    const socketInstance = getSocket()
+    const currentRoomId = roomIdRef.current || roomId
+    if (isMultiplayer && currentRoomId && socketInstance) {
+      console.log('Leaving room:', currentRoomId)
+      socketInstance.emit('leave-room', { roomId: currentRoomId })
+    }
+    
+    // CRITICAL: Clear room references to prevent sending data to old rooms
+    roomIdRef.current = ''
+    isMultiplayerRef.current = false
     
     // Clean up all state
     setGameMode(null)
@@ -758,6 +882,7 @@ function App() {
         options={options}
         selectedIdx={selectedIdx}
         showAnswer={showAnswer}
+        hasSubmittedAnswer={hasSubmittedAnswer}
         isCorrect={isCorrect}
         score={score}
         timePlayed={timePlayed}

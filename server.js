@@ -36,6 +36,30 @@ io.on('connection', (socket) => {
   console.log('Player connected:', socket.id)
 
   socket.on('create-room', (data) => {
+    // First, leave any existing room the player might be in
+    for (const [existingRoomId, existingRoom] of rooms.entries()) {
+      if (existingRoom.players.has(socket.id)) {
+        console.log(`Player ${socket.id} is already in room ${existingRoomId}, leaving it first`)
+        existingRoom.players.delete(socket.id)
+        socket.leave(existingRoomId)
+        if (existingRoom.hostId === socket.id) {
+          // Host left - close room
+          const otherPlayerIds = Array.from(existingRoom.players.keys())
+          otherPlayerIds.forEach(playerId => {
+            io.to(playerId).emit('room-closed', { message: 'Host left the room' })
+          })
+          rooms.delete(existingRoomId)
+        } else if (existingRoom.players.size === 0) {
+          rooms.delete(existingRoomId)
+        } else {
+          existingRoom.players.forEach((player, playerId) => {
+            io.to(playerId).emit('room-updated', getRoomState(existingRoomId))
+          })
+        }
+        break
+      }
+    }
+    
     const roomId = Math.random().toString(36).substring(2, 9).toUpperCase()
     const { playerName, genre = 'any', type = 'any', rounds = 10 } = data
     
@@ -54,7 +78,8 @@ io.on('connection', (socket) => {
       gameMode: null,
       roundStarted: false,
       answers: new Map(),
-      tracks: []
+      tracks: [],
+      gameFinished: false
     })
     
     socket.join(roomId)
@@ -74,6 +99,30 @@ io.on('connection', (socket) => {
     
     console.log(`Player ${playerName} (${socket.id}) attempting to join room ${roomId}`)
     
+    // First, leave any existing room the player might be in
+    for (const [existingRoomId, existingRoom] of rooms.entries()) {
+      if (existingRoom.players.has(socket.id)) {
+        console.log(`Player ${socket.id} is already in room ${existingRoomId}, leaving it first`)
+        existingRoom.players.delete(socket.id)
+        socket.leave(existingRoomId)
+        if (existingRoom.hostId === socket.id) {
+          // Host left - close room
+          const otherPlayerIds = Array.from(existingRoom.players.keys())
+          otherPlayerIds.forEach(playerId => {
+            io.to(playerId).emit('room-closed', { message: 'Host left the room' })
+          })
+          rooms.delete(existingRoomId)
+        } else if (existingRoom.players.size === 0) {
+          rooms.delete(existingRoomId)
+        } else {
+          existingRoom.players.forEach((player, playerId) => {
+            io.to(playerId).emit('room-updated', getRoomState(existingRoomId))
+          })
+        }
+        break
+      }
+    }
+    
     if (!rooms.has(roomId)) {
       console.log(`Room ${roomId} not found`)
       socket.emit('room-error', { message: 'Room not found' })
@@ -87,6 +136,13 @@ io.on('connection', (socket) => {
       return
     }
     
+    // Don't allow joining finished games
+    if (room.gameFinished) {
+      console.log(`Room ${roomId} has finished, cannot join`)
+      socket.emit('room-error', { message: 'This game has already finished' })
+      return
+    }
+    
     room.players.set(socket.id, { id: socket.id, name: playerName, score: 0, currentRoundScore: 0, isReady: false })
     socket.join(roomId)
     socket.emit('room-joined', { roomId })
@@ -95,6 +151,46 @@ io.on('connection', (socket) => {
       io.to(playerId).emit('room-updated', getRoomState(roomId))
     })
     console.log(`Player ${playerName} joined room ${roomId}. Players:`, Array.from(room.players.values()).map(p => p.name))
+  })
+
+  socket.on('leave-room', (data) => {
+    const { roomId } = data
+    console.log(`Player ${socket.id} leaving room ${roomId}`)
+    const room = rooms.get(roomId)
+    if (!room) {
+      console.log(`Room ${roomId} not found for leave signal`)
+      return
+    }
+    
+    if (!room.players.has(socket.id)) {
+      console.log(`Player ${socket.id} not in room ${roomId}`)
+      return
+    }
+    
+    const isHost = room.hostId === socket.id
+    room.players.delete(socket.id)
+    socket.leave(roomId)
+    
+    if (isHost) {
+      // Host left - close room and notify other players
+      console.log(`Host left room ${roomId}, closing room and notifying ${room.players.size} other players`)
+      const otherPlayerIds = Array.from(room.players.keys())
+      otherPlayerIds.forEach(playerId => {
+        io.to(playerId).emit('room-closed', { message: 'Host left the room' })
+      })
+      rooms.delete(roomId)
+    } else {
+      // Regular player left
+      if (room.players.size === 0) {
+        // No players left, delete room
+        rooms.delete(roomId)
+      } else {
+        // Notify remaining players
+        room.players.forEach((player, playerId) => {
+          io.to(playerId).emit('room-updated', getRoomState(roomId))
+        })
+      }
+    }
   })
 
   socket.on('player-ready', (data) => {
@@ -168,10 +264,15 @@ io.on('connection', (socket) => {
     
     // Check if all remaining players answered
     if (room.answers.size === room.players.size && room.players.size > 0) {
-      console.log(`All players answered, moving to next round in 2 seconds...`)
+      console.log(`All players answered, showing answers...`)
+      // Emit event to all players to show the answer
+      room.players.forEach((player, playerId) => {
+        io.to(playerId).emit('all-answers-submitted')
+      })
+      // Wait 3 seconds for players to see the answer, then move to next round
       setTimeout(() => {
         nextRound(roomId)
-      }, 2000)
+      }, 3000)
     }
   })
 
@@ -186,7 +287,16 @@ io.on('connection', (socket) => {
     console.log(`set-round-data received from ${socket.id} for room ${roomId}`)
     const room = rooms.get(roomId)
     if (!room) {
-      console.log(`Room ${roomId} not found`)
+      console.log(`Room ${roomId} not found - sending error to client`)
+      // Send error to client so it knows to stop trying
+      socket.emit('room-error', { message: 'Room not found' })
+      return
+    }
+    
+    // Verify the player is actually in this room
+    if (!room.players.has(socket.id)) {
+      console.log(`Player ${socket.id} not in room ${roomId} - sending error`)
+      socket.emit('room-error', { message: 'You are not in this room' })
       return
     }
     if (room.roundStarted) {
@@ -272,10 +382,17 @@ io.on('connection', (socket) => {
           })
         }
         
-        // Move to next round
+        // Emit event to all players to show the answer (even if some timed out)
+        if (currentRoom) {
+          currentRoom.players.forEach((player, playerId) => {
+            io.to(playerId).emit('all-answers-submitted')
+          })
+        }
+        
+        // Wait 3 seconds for players to see the answer, then move to next round
         setTimeout(() => {
           nextRound(roomId)
-        }, 2000)
+        }, 3000)
       }
     }, 15000) // 15 seconds (5s countdown + 10s audio)
   })
@@ -420,13 +537,15 @@ async function nextRound(roomId) {
   const totalRounds = room.totalRounds || 10
   
   if (room.currentRound > totalRounds) {
-    // Game over
+    // Game over - send results but don't delete room yet (players can view results)
     // Only send to active players
     room.players.forEach((player, playerId) => {
       io.to(playerId).emit('game-over', {
         players: Array.from(room.players.values()).sort((a, b) => b.score - a.score)
       })
     })
+    // Mark room as finished - it will be cleaned up when all players leave
+    room.gameFinished = true
   } else {
     await loadRound(roomId)
   }

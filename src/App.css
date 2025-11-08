@@ -847,6 +847,28 @@
   transition: width 0.1s linear;
 }
 
+.waiting-message {
+  text-align: center;
+  padding: 20px;
+  margin: 20px 0;
+  color: var(--hint);
+  font-size: 1.1rem;
+}
+
+.waiting-message p {
+  margin: 0;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
 .time-info {
   font-size: 0.9rem;
   color: var(--comment);

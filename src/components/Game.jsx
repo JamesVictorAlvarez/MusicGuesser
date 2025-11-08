@@ -6,6 +6,7 @@ export default function Game({
   options,
   selectedIdx,
   showAnswer,
+  hasSubmittedAnswer = false,
   isCorrect,
   score,
   timePlayed,
@@ -135,6 +136,11 @@ export default function Game({
               </div>
             </div>
 
+            {isMultiplayer && hasSubmittedAnswer && !showAnswer ? (
+              <div className="waiting-message">
+                <p>Waiting for other players to submit their answers...</p>
+              </div>
+            ) : null}
             <div className="choices">
               {options.map((opt, idx) => {
                 const isSelected = selectedIdx === idx
@@ -148,7 +154,7 @@ export default function Game({
                     key={idx}
                     className={`choice-btn ${stateClass}`}
                     onClick={() => onChoice(idx)}
-                    disabled={showAnswer || !audioStarted}
+                    disabled={showAnswer || hasSubmittedAnswer || !audioStarted}
                   >
                     <span className="choice-label">{opt.label}</span>
                   </button>
