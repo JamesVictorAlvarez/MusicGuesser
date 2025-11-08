@@ -63,14 +63,11 @@ export default function Game({
                     const playerAnswer = playerAnswers.find(a => a.playerId === p.id)
                     const gotItRight = showAnswer && playerAnswer?.isCorrect
                     return (
-                      <span key={p.id} className="player-score-mini">
-                        <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          {p.name}
-                          {gotItRight && (
-                            <span className="check-icon" title="Got it right!">✓</span>
-                          )}
-                        </span>
-                        : {p.score}
+                      <span key={p.id} className="player-name-mini">
+                        {p.name}
+                        {gotItRight && (
+                          <span className="check-icon" title="Got it right!">✓</span>
+                        )}
                       </span>
                     )
                   })}
