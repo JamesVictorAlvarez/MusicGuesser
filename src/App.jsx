@@ -13,6 +13,7 @@ import Game from './components/Game'
 import MultiplayerMenu from './components/multiplayer/MultiplayerMenu'
 import MultiplayerLobby from './components/multiplayer/MultiplayerLobby'
 import MultiplayerResults from './components/multiplayer/MultiplayerResults'
+import Toast from './components/Toast'
 
 import './App.css'
 import './multiplayer.css'
@@ -53,6 +54,7 @@ function App() {
   const [hostId, setHostId] = useState(null)
   const [gameOver, setGameOver] = useState(false)
   const [finalLeaderboard, setFinalLeaderboard] = useState([])
+  const [toast, setToast] = useState(null)
 
   const roomIdRef = useRef('')
   const isMultiplayerRef = useRef(false)
@@ -393,7 +395,7 @@ function App() {
         socketInstance.off('room-error')
       }
       
-      alert(data.message || 'The room was closed')
+      setToast(data.message || 'The room was closed')
       
       // Note: Socket will disconnect automatically when browser closes
       // No need to manually disconnect here
@@ -435,7 +437,7 @@ function App() {
         // Don't show alert for these errors as they're likely from cleanup
         return
       }
-      alert(data.message)
+      setToast(data.message)
     })
 
     return () => {
@@ -728,8 +730,10 @@ function App() {
 
 
   // View routing
+  let content = null
+
   if (view === 'menu') {
-    return (
+    content = (
       <Menu
         selectedGenre={selectedGenre}
         selectedType={selectedType}
@@ -762,30 +766,24 @@ function App() {
         onSettings={() => setView('settings')}
       />
     )
-  }
-
-  if (view === 'settings') {
-    return (
+  } else if (view === 'settings') {
+    content = (
       <Settings 
         onBack={() => setView('menu')}
         volume={volume}
         onVolumeChange={handleVolumeChange}
       />
     )
-  }
-
-  if (view === 'multiplayer-menu') {
-    return (
+  } else if (view === 'multiplayer-menu') {
+    content = (
       <MultiplayerMenu
         socketConnected={socketConnected}
         socketError={socketError}
         onBack={() => setView('menu')}
       />
     )
-  }
-
-  if (view === 'multiplayer-lobby') {
-    return (
+  } else if (view === 'multiplayer-lobby') {
+    content = (
       <MultiplayerLobby
         roomCode={roomCode}
         players={players}
@@ -797,10 +795,8 @@ function App() {
         totalRounds={totalRounds}
       />
     )
-  }
-
-  if (view === 'multiplayer-results') {
-    return (
+  } else if (view === 'multiplayer-results') {
+    content = (
       <MultiplayerResults
         leaderboard={finalLeaderboard}
         onBackToMenu={() => {
@@ -808,11 +804,8 @@ function App() {
         }}
       />
     )
-  }
-
-  // Show single player results if game is over
-  if (!isMultiplayer && gameOver && view === 'game') {
-    return (
+  } else if (!isMultiplayer && gameOver && view === 'game') {
+    content = (
       <div className="app">
         <div className="game-container">
           <div className="header">
@@ -839,12 +832,9 @@ function App() {
         </div>
       </div>
     )
-  }
-
-  // Game view (single player or multiplayer)
-  if (view === 'game' || view === 'multiplayer-game') {
+  } else if (view === 'game' || view === 'multiplayer-game') {
     if (loading && !currentTrack) {
-      return (
+      content = (
         <div className="app">
           <div className="loading">
             <div className="spinner"></div>
@@ -852,10 +842,8 @@ function App() {
           </div>
         </div>
       )
-    }
-
-    if (!currentTrack && tracks.length === 0 && !loading) {
-      return (
+    } else if (!currentTrack && tracks.length === 0 && !loading) {
+      content = (
         <div className="app">
           <div className="error">
             <h2>No tracks available</h2>
@@ -873,34 +861,45 @@ function App() {
           </div>
         </div>
       )
+    } else {
+      content = (
+        <Game
+          gameMode={gameMode}
+          currentTrack={currentTrack}
+          options={options}
+          selectedIdx={selectedIdx}
+          showAnswer={showAnswer}
+          hasSubmittedAnswer={hasSubmittedAnswer}
+          isCorrect={isCorrect}
+          score={score}
+          timePlayed={timePlayed}
+          autoStartIn={autoStartIn}
+          audioRef={audioRef}
+          isMultiplayer={isMultiplayer}
+          currentRound={currentRound}
+          totalRounds={totalRounds}
+          players={players}
+          audioStarted={audioStarted}
+          onChoice={handleChoice}
+          onLeave={handleLeave}
+          onTimeUpdate={setTimePlayed}
+        />
+      )
     }
-
-    return (
-      <Game
-        gameMode={gameMode}
-        currentTrack={currentTrack}
-        options={options}
-        selectedIdx={selectedIdx}
-        showAnswer={showAnswer}
-        hasSubmittedAnswer={hasSubmittedAnswer}
-        isCorrect={isCorrect}
-        score={score}
-        timePlayed={timePlayed}
-        autoStartIn={autoStartIn}
-        audioRef={audioRef}
-        isMultiplayer={isMultiplayer}
-        currentRound={currentRound}
-        totalRounds={totalRounds}
-        players={players}
-        audioStarted={audioStarted}
-        onChoice={handleChoice}
-        onLeave={handleLeave}
-        onTimeUpdate={setTimePlayed}
-      />
-    )
   }
 
-  return null
+  return (
+    <>
+      {toast && (
+        <Toast
+          message={toast}
+          onClose={() => setToast(null)}
+          duration={4000}
+        />
+      )}
+      {content}
+    </>
+  )
 }
 
 export default App
