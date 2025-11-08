@@ -59,11 +59,21 @@ export default function Game({
               <>
                 <span>Round {currentRound}/{totalRounds}</span>
                 <div className="players-mini">
-                  {players.map(p => (
-                    <span key={p.id} className="player-score-mini">
-                      {p.name}: {p.score}
-                    </span>
-                  ))}
+                  {players.map(p => {
+                    const playerAnswer = playerAnswers.find(a => a.playerId === p.id)
+                    const gotItRight = showAnswer && playerAnswer?.isCorrect
+                    return (
+                      <span key={p.id} className="player-score-mini">
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          {p.name}
+                          {gotItRight && (
+                            <span className="check-icon" title="Got it right!">✓</span>
+                          )}
+                        </span>
+                        : {p.score}
+                      </span>
+                    )
+                  })}
                 </div>
               </>
             ) : (
@@ -79,12 +89,21 @@ export default function Game({
           <div className="game-sidebar">
             {isMultiplayer ? (
               <div className="players-mini">
-                {players.map(p => (
-                  <div key={p.id} className="player-score-item">
-                    <span className="player-name-mini">{p.name}</span>
-                    <span className="player-score-mini">{p.score}</span>
-                  </div>
-                ))}
+                {players.map(p => {
+                  const playerAnswer = playerAnswers.find(a => a.playerId === p.id)
+                  const gotItRight = showAnswer && playerAnswer?.isCorrect
+                  return (
+                    <div key={p.id} className="player-score-item">
+                      <span className="player-name-mini">
+                        {p.name}
+                        {gotItRight && (
+                          <span className="check-icon" title="Got it right!">✓</span>
+                        )}
+                      </span>
+                      <span className="player-score-mini">{p.score}</span>
+                    </div>
+                  )
+                })}
               </div>
             ) : (
               <div className="score-value">{score}</div>
