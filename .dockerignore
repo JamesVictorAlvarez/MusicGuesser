@@ -1,0 +1,47 @@
+# Node
+node_modules
+npm-debug.log
+npm-debug.log*
+dist
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+server_venv/
+*.egg-info/
+.pytest_cache/
+.coverage
+
+# IDEs
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Git
+.git
+.gitignore
+.github
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Build artifacts
+build/
+dist/
+*.tar.gz
+
+# Misc
+README.md
+DEVELOPMENT.md
+MIGRATION_GUIDE.md
+run_server.sh

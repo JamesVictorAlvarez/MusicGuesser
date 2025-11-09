@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  # FastAPI Server
+  server:
+    build: .
+    container_name: music-guesser-server
+    ports:
+      - "3001:8000"
+    environment:
+      PORT: 8000
+      HOST: 0.0.0.0
+      DEBUG: "True"
+      CORS_ORIGINS: "http://localhost:5173,http://localhost:3000"
+    volumes:
+      - ./server:/app
+    command: python main.py
+    networks:
+      - music-guesser-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+
+  # React Frontend (optional - for full stack testing)
+  frontend:
+    image: node:18-alpine
+    container_name: music-guesser-frontend
+    working_dir: /app
+    ports:
+      - "5173:5173"
+    volumes:
+      - .:/app
+    environment:
+      VITE_SERVER_URL: "http://localhost:3001"
+    command: sh -c "npm install && npm run dev"
+    networks:
+      - music-guesser-network
+    depends_on:
+      server:
+        condition: service_healthy
+
+networks:
+  music-guesser-network:
+    driver: bridge
